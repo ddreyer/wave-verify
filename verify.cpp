@@ -195,7 +195,8 @@ int main() {
 	     * Read and print the decoded data.
 	     */
 	    wwoPtr = pdu.get_data();
-	    // printCard(wwoPtr);
+	    if (wwoPtr.get_type_id());
+
 	} catch (ASN1Exception &exc) {
 	    /*
 	     * An error occurred during decoding.
@@ -214,9 +215,16 @@ int main() {
 	printf("Unexpected exception caught.\n");
 	code = -1;
     }
-    /*
-     * Delete the decoded data (if there are any).
-     */
-    delete wwoPtr;
+
+    // retrieve attestations
+    WaveExplicitProof exp = wwoPtr.get_value().get_WaveExplicitProof();
+    if (exp == nullptr) {
+        printf("bad explicit proof\n");
+    }
+
+    attestations *atsts = exp.get_attestations();
+    while (true) {
+        AttestationReference atst = atsts.
+    }
     return code;
 }
