@@ -1,7 +1,7 @@
 CC      = g++
 CFLAGS  = -I/usr/local/asn1cpp/include
-LIBS = -lm -lnsl
-OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.a /usr/local/asn1cpp/lib/libcpptoed.a 
+LIBS = -lm -lnsl -pthread
+OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcpptoed.so -ldl 
 
 
 verify: objects.o verify.o 

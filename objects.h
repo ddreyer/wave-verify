@@ -13,7 +13,7 @@
 
 /* Generated for: UC Berkeley (Trial), License 76702Z 76702Z. */
 /* Abstract syntax: objects */
-/* Created: Thu Apr 12 18:38:36 2018 */
+/* Created: Tue Apr 17 19:03:42 2018 */
 /* ASN.1/C++ compiler version: 6.6 */
 /* Code generated for runtime version 6.6 or later */
 /* Compiler operating system: Linux with 64-bit support */
@@ -22,8 +22,7 @@
 /* Target machine type: Intel 64 or AMD64 */
 /* C++ compiler options required: -m64 */
 /* ASN.1 compiler options and file names specified:
- * -der -root -noSampleCode -messageFormat msvc -allow universaltags
- * /home/dyldreyer/Desktop/wave_verify/objects.asn
+ * -der -allow universaltags objects.asn
  */
 
 #ifndef OSS_objects
