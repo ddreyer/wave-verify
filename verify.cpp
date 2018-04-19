@@ -192,11 +192,9 @@ int main() {
 	    pdu.decode(ctl, encodedData);
 
 	    /*
-	     * Read and print the decoded data.
+	     * Read decoded data.
 	     */
 	    wwoPtr = pdu.get_data();
-	    if (wwoPtr.get_type_id());
-
 	} catch (ASN1Exception &exc) {
 	    /*
 	     * An error occurred during decoding.
@@ -216,15 +214,36 @@ int main() {
 	code = -1;
     }
 
-    // retrieve attestations
-    WaveExplicitProof exp = wwoPtr.get_value().get_WaveExplicitProof();
+    WaveExplicitProof *exp = wwoPtr->get_value().get_WaveExplicitProof();
     if (exp == nullptr) {
         printf("bad explicit proof\n");
     }
 
-    attestations *atsts = exp.get_attestations();
-    while (true) {
-        AttestationReference atst = atsts.
+    // TODO: skip parsing Entities
+
+    // retrieve attestations
+    WaveExplicitProof::attestations atsts = exp->get_attestations();
+    OssIndex attIndex = atsts.first();
+    while (attIndex != OSS_NOINDEX) {
+        AttestationReference *atst = atsts.at(attIndex);
+
+        AttestationReference::keys keys = atst->get_keys();
+        if (keys.empty()) {
+            printf("atst has no keys\n");
+        }
+        OssIndex keyIndex = keys.first();
+        while (keyIndex != OSS_NOINDEX) {
+            AttestationVerifierKey *key = keys.at(keyIndex);
+
+            AttestationVerifierKeySchemes_Type vf = key->get_value();
+            AVKeyAES128_GCM *vfk = vf.get_AVKeyAES128_GCM();
+            if (vfk == nullptr) {
+                printf("atst key was not aes\n");
+            }
+        }
+
+        attIndex = atsts.next(attIndex);
+
     }
     return code;
 }
