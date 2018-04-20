@@ -227,23 +227,139 @@ int main() {
     while (attIndex != OSS_NOINDEX) {
         AttestationReference *atst = atsts.at(attIndex);
 
+        // TODO: figure out best way to use keys/support multiple keys
         AttestationReference::keys keys = atst->get_keys();
+        AVKeyAES128_GCM *vfk;
         if (keys.empty()) {
             printf("atst has no keys\n");
         }
         OssIndex keyIndex = keys.first();
         while (keyIndex != OSS_NOINDEX) {
-            AttestationVerifierKey *key = keys.at(keyIndex);
+            printf("This should not print twice\n");
+            AttestationVerifierKey * key = keys.at(keyIndex);
 
             AttestationVerifierKeySchemes_Type vf = key->get_value();
-            AVKeyAES128_GCM *vfk = vf.get_AVKeyAES128_GCM();
+            vfk = vf.get_AVKeyAES128_GCM();
             if (vfk == nullptr) {
                 printf("atst key was not aes\n");
             }
+            keyIndex = keys.next(keyIndex);
         }
 
-        attIndex = atsts.next(attIndex);
+        // parse attestation
+        int code = 0;		/* return code */
+        AttestationReference::content *derEncodedData = atst->get_content();
+        WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
 
+        /*
+         * Handle ASN.1/C++ runtime errors with C++ exceptions.
+         */
+        asn1_set_error_handling(throw_error, TRUE);
+
+        try {
+            objects_Control ctl;	/* ASN.1/C++ control object */
+
+            try {
+                EncodedBuffer encodedData;	/* encoded data */
+                WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
+                int encRule;	/* default encoding rules */
+
+#ifdef RELAXED_MODE
+                /*
+     * Set relaxed mode.
+     */
+    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
+    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
+#endif
+
+                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+                /*
+                 * Do decoding. Note that API is the same for any encoding method.
+                 * Get encoding rules which were specified on the ASN.1 compiler
+                 * command line.
+                 */
+                encRule = ctl.getEncodingRules();
+
+                /*
+                 * Set the decoder's input.
+                 */
+                if (encRule == OSS_DER) {
+                    encodedData.set_buffer(derEncodedData->length(),
+                                           (char *)derEncodedData->get_buffer());
+                } else {
+                    cout << "can't find encoding rule\n";
+                }
+
+                /*
+                 * Print the encoded message.
+                 */
+                printf("Printing the DER-encoded PDU...\n\n");
+                encodedData.print_hex(ctl);
+
+                /*
+                 * Decode the encoded PDU whose encoding is in "encodedData".
+                 * An exception will be thrown on any error.
+                 */
+                printf("\nThe decoder's trace messages (only for SOED)...\n\n");
+                pdu.decode(ctl, encodedData);
+
+                /*
+                 * Read decoded data.
+                 */
+                wwoPtr = pdu.get_data();
+            } catch (ASN1Exception &exc) {
+                /*
+                 * An error occurred during decoding.
+                 */
+                code = report_error(&ctl, "decode", exc);
+            }
+        } catch (ASN1Exception &exc) {
+            /*
+             * An error occurred during control object initialization.
+             */
+            code = report_error(NULL, "initialization", exc);
+        } catch (...) {
+            /*
+             * An unexpected exception is caught.
+             */
+            printf("Unexpected exception caught.\n");
+            code = -1;
+        }
+
+        WaveAttestation *att = wwoPtr->get_value().get_WaveAttestation();
+        if (exp == nullptr) {
+            printf("DER is not a wave attestation");
+        }
+
+        // TODO: skipping return value formation, some error checks, body schemes
+
+        // TODO: assuming body is of type WR1Body
+        bool test = att->get_tbs().get_body().get_type_id() == wr1_body_scheme_v1;
+        if (!test) {
+            printf("comparing att body type ID's failed");
+        }
+
+        // decrypt body
+        WR1BodyCiphertext *wr1body = att->get_tbs().get_body()
+                .get_value().get_WR1BodyCiphertext();
+
+        if (wr1body == nullptr) {
+            printf("getting body ciphertext failed");
+        }
+
+        //TODO: skipping subject check
+
+        // need to extract key with length
+        std::string verifierKey = vfk->get_buffer();
+        std::string verifierBodyKey = ;
+        std::string verifierBodyNonce = ;
+
+
+        // retrieve next attestation to parse
+        attIndex = atsts.next(attIndex);
     }
+
     return code;
 }
