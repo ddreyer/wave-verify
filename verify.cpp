@@ -1,9 +1,13 @@
-#include "objects.h"
 #include <string>
 #include <fstream>
 #include <streambuf>
 #include <iostream>
 #include <stdio.h>
+
+#include "objects.h"
+extern "C" {
+    #include "aes-gcm/gcm.h"
+}
 
 using namespace std;
 
@@ -134,7 +138,7 @@ int main() {
     	cerr << "could not decode proof from DER format";
     }
 
-
+    // unmarshal into WaveWireObject
     int code = 0;		/* return code */
     WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
 
@@ -210,6 +214,8 @@ int main() {
 	/*
 	 * An unexpected exception is caught.
 	 */
+
+
 	printf("Unexpected exception caught.\n");
 	code = -1;
     }
@@ -351,11 +357,118 @@ int main() {
 
         //TODO: skipping subject check
 
-        // need to extract key with length
-        std::string verifierKey = vfk->get_buffer();
-        std::string verifierBodyKey = ;
-        std::string verifierBodyNonce = ;
+        std::string verifierKey(vfk->get_buffer(), vfk->get_buffer() + vfk->length());
+        std::string verifierBodyKey = verifierKey.substr(0, 16);
+        std::string verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
 
+        mbedtls_gcm_context ctx;
+        mbedtls_gcm_init( &ctx );
+        int ret = 0;
+
+        // for 128 bit key
+        int keyLen = verifierBodyKey.length();
+        printf("Keylen: %d\n", keyLen);
+        ret = mbedtls_gcm_setkey( &ctx, MBEDTLS_CIPHER_ID_AES, (const unsigned char *) verifierBodyKey.c_str(), keyLen);
+        if (ret) {
+            printf("aes set key failed\n");
+        }
+
+   
+        WR1BodyCiphertext::verifierBodyCiphertext vbodyCipher = wr1body->get_verifierBodyCiphertext();
+        const unsigned char additional[] = {};
+        int bodyLen = vbodyCipher.length();
+        unsigned char verifierBodyDER[bodyLen];
+        unsigned char tag_buf[16];
+        ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
+            16, additional, 0, (const unsigned char *) vbodyCipher.get_buffer(), verifierBodyDER, 16, tag_buf);
+        if (ret) {
+            printf("aes decrypt failed\n");
+        }
+        mbedtls_gcm_free( &ctx );
+
+        //unmarshal into WR1VerifierBody
+        code = 0;		/* return code */
+        WR1VerifierBody *vbody = NULL;	/* pointer to decoded data */
+
+        /*
+        * Handle ASN.1/C++ runtime errors with C++ exceptions.
+        */
+        asn1_set_error_handling(throw_error, TRUE);
+
+        try {
+        objects_Control ctl;	/* ASN.1/C++ control object */
+
+        try {
+            EncodedBuffer encodedData;	/* encoded data */
+            WR1VerifierBody_PDU pdu;	 /* coding container for a WWO value */ 
+            int encRule;	/* default encoding rules */
+
+    #ifdef RELAXED_MODE
+            /*
+            * Set relaxed mode.
+            */
+            ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
+            ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
+    #endif
+
+            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+            /*
+            * Do decoding. Note that API is the same for any encoding method.
+            * Get encoding rules which were specified on the ASN.1 compiler
+            * command line.
+            */
+            encRule = ctl.getEncodingRules();
+
+            /*
+            * Set the decoder's input.
+            */
+            if (encRule == OSS_DER) {
+            encodedData.set_buffer(bodyLen, (char *) verifierBodyDER);
+            } else {
+                cout << "can't find encoding rule\n";
+            }
+
+            /*
+            * Print the encoded message.
+            */
+            printf("Printing the DER-encoded PDU...\n\n");
+            encodedData.print_hex(ctl);
+
+            /*
+            * Decode the encoded PDU whose encoding is in "encodedData".
+            * An exception will be thrown on any error.
+            */
+            printf("\nThe decoder's trace messages (only for SOED)...\n\n");
+            pdu.decode(ctl, encodedData);
+
+            /*
+            * Read decoded data.
+            */
+            vbody = pdu.get_data();
+        } catch (ASN1Exception &exc) {
+            /*
+            * An error occurred during decoding.
+            */
+            code = report_error(&ctl, "decode", exc);
+        }
+        } catch (ASN1Exception &exc) {
+        /*
+        * An error occurred during control object initialization.
+        */
+        code = report_error(NULL, "initialization", exc);
+        } catch (...) {
+        /*
+        * An unexpected exception is caught.
+        */
+
+
+        printf("Unexpected exception caught.\n");
+        code = -1;
+        }
+
+        
 
         // retrieve next attestation to parse
         attIndex = atsts.next(attIndex);

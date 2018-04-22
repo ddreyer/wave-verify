@@ -1,18 +1,24 @@
 CC      = g++
 CFLAGS  = -I/usr/local/asn1cpp/include
 LIBS = -lm -lnsl -pthread
-OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcpptoed.so -ldl 
+OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcpptoed.so -ldl
+OBJECTS=$(SRCS:.c=.o) 
+SRCS=$(wildcard aes-gcm/*.c)
+AESCFLAGS=-c -Wall
 
 all: verify
 
-verify: objects.o verify.o 
-		$(CC) -o $@ $^ $(LIBS) $(OSSLIBS)
+verify: $(OBJECTS) objects.o verify.o
+		g++ -o $@ $^ $(LIBS) $(OSSLIBS)
 
-verify.o: verify.cpp 
+verify.o: verify.cpp
 		$(CC) -I. $(CFLAGS) -c $<
 
 objects.o: objects.cpp
-	$(CC) -I. $(CFLAGS) -DOSSPRINT -c $<
+		$(CC) -I. $(CFLAGS) -DOSSPRINT -c $<
+
+$(OBJECTS): $(SRCS)
+		gcc $(AESCFLAGS) -c $< -o $@ 
 
 .PHONY: clean cleanest
 
