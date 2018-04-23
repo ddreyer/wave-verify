@@ -5,9 +5,7 @@
 #include <stdio.h>
 
 #include "objects.h"
-extern "C" {
-    #include "aes-gcm/gcm.h"
-}
+#include "aes-gcm/gcm.h"
 
 using namespace std;
 

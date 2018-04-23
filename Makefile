@@ -17,7 +17,7 @@ verify.o: verify.cpp
 objects.o: objects.cpp
 		$(CC) -I. $(CFLAGS) -DOSSPRINT -c $<
 
-$(OBJECTS): $(SRCS)
+$(OBJECTS): aes-gcm/%.o : aes-gcm/%.c
 		gcc $(AESCFLAGS) -c $< -o $@ 
 
 .PHONY: clean cleanest

@@ -2,3 +2,4 @@ proof*
 verify
 .idea*
 .vscode*
+*.o
