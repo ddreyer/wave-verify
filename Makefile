@@ -2,13 +2,15 @@ CC      = g++
 CFLAGS  = -I/usr/local/asn1cpp/include
 LIBS = -lm -lnsl -pthread
 OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcpptoed.so -ldl
-OBJECTS=$(SRCS:.c=.o) 
-SRCS=$(wildcard aes-gcm/*.c)
+AES_OBJECTS=$(AES_SRCS:.c=.o) 
+AES_SRCS=aes-gcm/aes.c aes-gcm/cipher.c aes-gcm/cipher_wrap.c aes-gcm/gcm.c aes-gcm/utils.c
 AESCFLAGS=-c -Wall
+ED_OBJECTS=$(ED_SRCS:.c=.o)
+ED_SRCS=$(wildcard ed25519/src/*.c)
 
 all: verify
 
-verify: $(OBJECTS) objects.o verify.o
+verify: $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o
 		g++ -o $@ $^ $(LIBS) $(OSSLIBS)
 
 verify.o: verify.cpp
@@ -17,8 +19,11 @@ verify.o: verify.cpp
 objects.o: objects.cpp
 		$(CC) -I. $(CFLAGS) -DOSSPRINT -c $<
 
-$(OBJECTS): aes-gcm/%.o : aes-gcm/%.c
-		gcc $(AESCFLAGS) -c $< -o $@ 
+$(AES_OBJECTS): aes-gcm/%.o : aes-gcm/%.c
+		gcc -c -Wall -c $< -o $@ 
+
+$(ED_OBJECTS): ed25519/src/%.o: ed25519/src/%.c
+		gcc -c $< -o $@
 
 .PHONY: clean cleanest
 

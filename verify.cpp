@@ -6,6 +6,7 @@
 
 #include "objects.h"
 #include "aes-gcm/gcm.h"
+#include "ed25519/src/ed25519.h"
 
 using namespace std;
 
@@ -230,6 +231,8 @@ int main() {
     OssIndex attIndex = atsts.first();
     while (attIndex != OSS_NOINDEX) {
         AttestationReference *atst = atsts.at(attIndex);
+        // retrieve next attestation to parse
+        attIndex = atsts.next(attIndex);
 
         // TODO: figure out best way to use keys/support multiple keys
         AttestationReference::keys keys = atst->get_keys();
@@ -466,10 +469,108 @@ int main() {
         code = -1;
         }
 
+        WR1VerifierBody::attestationVerifierBody decryptedBody = 
+            vbody->get_attestationVerifierBody();
+
+        // TODO: do something here after decrypting body
+
+        // check signature
+        // TODO: check type
+
+        // assume supported type
+        Ed25519OuterSignature *osig = 
+            att->get_outerSignature().get_value().get_Ed25519OuterSignature();
+        if (osig == nullptr) {
+            printf("Outer signature lied about its scheme\n");
+        }
+
+        // TODO: figure out marshaling of attestation TBS
+    //     const char *where = "initialization";
+    //     try {
+    //     objects_Control ctl;	/* ASN.1/C++ control object */
+
+    //     try {
+    //         EncodedBuffer encodedData;	/* encoded data */
+    //         __seq4 pdu;		/* coding container for attestation TBS value */
+    //         ossEncodingRules encRule;	/* default encoding rules */
+
+    //         where = "initial settings";
+
+    // #ifdef RELAXED_MODE
+    //         /*
+    //         * Set relaxed mode.
+    //         */
+    //         ctl.setEncodingFlags(NOCONSTRAIN | RELAXBER | RELAXPER);
+    //         ctl.setDecodingFlags(NOCONSTRAIN | RELAXBER | RELAXPER);
+    // #endif
+
+    //         ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+    //         ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+    //         /*
+    //         * Get the encoding rule, which is set currently.
+    //         */
+    //         encRule = ctl.getEncodingRules();
+
+    //         /*
+    //         * Set the data to the coding container.
+    //         */
+    //         pdu.set_data(att->get_tbs());
+
+    //         /*
+    //         * Print the input to the encoder.
+    //         */
+    //         printf("The input to the encoder...\n\n");
+    //         where = "printing";
+    //         pdu.print(ctl);
+
+    //         /*
+    //         * Encode the object.
+    //         */
+    //         printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+    //         where = "encoding";
+    //         pdu.encode(ctl, encodedData);
+    //         printf("\nPDU encoded successfully.\n");
+
+    //         /*
+    //         * Printing the encoded PDU.
+    //         */
+    //         printf("\n%s-Encoded PDU...\n\n",
+    //             encRule == OSS_BER ? "BER": "PER");
+    //         where = "printing";
+    //         encodedData.print_hex(ctl);
+
+    //     } catch (ASN1Exception &exc) {
+    //         /*
+    //         * An error occurred during decoding.
+    //         */
+    //         code = report_error(&ctl, where, exc);
+    //     }
+    //     } catch (ASN1Exception &exc) {
+    //     /*
+    //     * An error occurred during control object initialization.
+    //     */
+    //     code = report_error(NULL, where, exc);
+    //     } catch (...) {
+    //     /*
+    //     * An unexpected exception is caught.
+    //     */
+    //     printf("Unexpected exception caught.\n");
+    //     code = -1;
+    //     }
         
 
-        // retrieve next attestation to parse
-        attIndex = atsts.next(attIndex);
+        Ed25519OuterSignature::verifyingKey vKey = osig->get_verifyingKey();
+        Ed25519OuterSignature::signature sig = osig->get_signature();
+        /* verify the signature */
+        //TODO: fix this
+        if (ed25519_verify((const unsigned char *) (sig.get_buffer()), 
+                (const unsigned char *) "temp", 4, (const unsigned char *) (vKey.get_buffer()))) {
+            printf("valid signature\n");
+        } else {
+            printf("invalid signature\n");
+        }
+
     }
 
     return code;

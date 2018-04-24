@@ -1,3 +1,6 @@
 [submodule "aes-gcm"]
 	path = aes-gcm
 	url = git@github.com:theicfire/aes-gcm.git
+[submodule "ed25519"]
+	path = ed25519
+	url = git@github.com:orlp/ed25519.git
