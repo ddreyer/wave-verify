@@ -130,7 +130,14 @@ int main() {
     int idx = pemStr.find("-----END WAVE");
     pemStr.erase(idx, pemStr.find("\n", idx));
 
-    string derEncodedData = base64_decode(pemStr);
+    // TODO: base64_decode doesn't work right now
+    // string derEncodedData(base64_decode(pemStr));
+    
+    ifstream v("proof_bin.der");
+    string derEncodedData((istreambuf_iterator<char>(v)),
+                             istreambuf_iterator<char>());
+    printf("Binary size: %lu\n", derEncodedData.length());
+
     if (derEncodedData.length() == 0) {
     	cerr << "could not decode proof from DER format\n";
         return -1;
@@ -139,7 +146,6 @@ int main() {
     // unmarshal into WaveWireObject
     int code = 0;		/* return code */
     WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
-
     /*
      * Handle ASN.1/C++ runtime errors with C++ exceptions.
      */
@@ -161,8 +167,9 @@ int main() {
 	    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
 #endif
 
-	    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-	    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+	    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+	    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+        ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
 
 	    /*
 	     * Do decoding. Note that API is the same for any encoding method.
@@ -175,7 +182,8 @@ int main() {
 	     * Set the decoder's input.
 	     */
 	    if (encRule == OSS_DER) {
-		encodedData.set_buffer(derEncodedData.length(), (char *)derEncodedData.c_str());
+            cout << "encoding rule is OSS_DER\n";
+		    encodedData.set_buffer(derEncodedData.length(), (char *)derEncodedData.c_str());
 	    } else {
 	    	cout << "can't find encoding rule\n";
 	    }
@@ -183,8 +191,8 @@ int main() {
 	    /*
 	     * Print the encoded message.
 	     */
-	    printf("Printing the DER-encoded PDU...\n\n");
-	    encodedData.print_hex(ctl);
+	    // printf("Printing the DER-encoded PDU...\n\n");
+	    // encodedData.print_hex(ctl);
 
 	    /*
 	     * Decode the encoded PDU whose encoding is in "encodedData".
@@ -225,14 +233,15 @@ int main() {
 
     WaveExplicitProof *exp = wwoPtr->get_value().get_WaveExplicitProof();
     if (exp == nullptr) {
-        cerr << "bad explicit proof\n";
+        cerr << "cannot get wave explicit proof from wave wire object\n";
         return -1;
     }
 
-    // TODO: skip parsing Entities
+    // // TODO: skip parsing Entities
 
-    // retrieve attestations
+    // // retrieve attestations
     WaveExplicitProof::attestations atsts = exp->get_attestations();
+    cout << "attestations retrieved\n";
     OssIndex attIndex = atsts.first();
     while (attIndex != OSS_NOINDEX) {
         AttestationReference *atst = atsts.at(attIndex);
@@ -278,16 +287,16 @@ int main() {
                 WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
                 int encRule;	/* default encoding rules */
 
-#ifdef RELAXED_MODE
-                /*
-     * Set relaxed mode.
-     */
-    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-#endif
+// #ifdef RELAXED_MODE
+//                 /*
+//      * Set relaxed mode.
+//      */
+//     ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
+//     ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
+// #endif
 
-                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+//                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+//                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
 
                 /*
                  * Do decoding. Note that API is the same for any encoding method.
@@ -309,8 +318,8 @@ int main() {
                 /*
                  * Print the encoded message.
                  */
-                printf("Printing the DER-encoded PDU...\n\n");
-                encodedData.print_hex(ctl);
+                // printf("Printing the DER-encoded PDU...\n\n");
+                // encodedData.print_hex(ctl);
 
                 /*
                  * Decode the encoded PDU whose encoding is in "encodedData".

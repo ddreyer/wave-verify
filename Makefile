@@ -1,7 +1,7 @@
 CC      = g++
 CFLAGS  = -I/usr/local/asn1cpp/include
 LIBS = -lm -lnsl -pthread
-OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcpptoed.so -ldl
+OSSLIBS = /usr/local/asn1cpp/lib/libosscpp.so /usr/local/asn1cpp/lib/libcppsoed.so -ldl
 AES_OBJECTS=$(AES_SRCS:.c=.o) 
 AES_SRCS=aes-gcm/aes.c aes-gcm/cipher.c aes-gcm/cipher_wrap.c aes-gcm/gcm.c aes-gcm/utils.c
 AESCFLAGS=-c -Wall
@@ -12,6 +12,7 @@ all: verify
 
 verify: $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o
 		g++ -o $@ $^ $(LIBS) $(OSSLIBS)
+		./verify
 
 verify.o: verify.cpp
 		$(CC) -I. $(CFLAGS) -c $<

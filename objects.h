@@ -13,7 +13,7 @@
 
 /* Generated for: UC Berkeley (Trial), License 76702Z 76702Z. */
 /* Abstract syntax: objects */
-/* Created: Tue Apr 17 19:03:42 2018 */
+/* Created: Thu Apr 26 19:47:31 2018 */
 /* ASN.1/C++ compiler version: 6.6 */
 /* Code generated for runtime version 6.6 or later */
 /* Compiler operating system: Linux with 64-bit support */
@@ -22,7 +22,7 @@
 /* Target machine type: Intel 64 or AMD64 */
 /* C++ compiler options required: -m64 */
 /* ASN.1 compiler options and file names specified:
- * -der -allow universaltags objects.asn
+ * -soed -der -allow universaltags objects.asn
  */
 
 #ifndef OSS_objects
@@ -34,12 +34,12 @@
 /* Representation types */
 
 
-const OSS_INT32 certification = 1;
-const OSS_INT32 attestation = 2;
-const OSS_INT32 signing = 3;
-const OSS_INT32 authentication = 4;
-const OSS_INT32 authorization = 5;
-const OSS_INT32 encryption = 6;
+const int certification = 1;
+const int attestation = 2;
+const int signing = 3;
+const int authentication = 4;
+const int authorization = 5;
+const int encryption = 6;
 typedef OssString HashSha3_256;
 
 typedef OssString HashSha_256;
@@ -144,7 +144,7 @@ public:
     void operator delete(void *ptr);
 
     typedef OssString value;
-    typedef OSS_INT32 apiVersion;
+    typedef int apiVersion;
 
     LocationURL();
     LocationURL(const LocationURL &);
@@ -172,8 +172,8 @@ public:
     void * operator new(size_t size);
     void operator delete(void *ptr);
 
-    typedef OSS_INT32 chainID;
-    typedef OSS_INT32 contractAddress;
+    typedef int chainID;
+    typedef int contractAddress;
 
     LocationEthereum();
     LocationEthereum(const LocationEthereum &);
@@ -347,7 +347,7 @@ public:
     void * operator new(size_t size);
     void operator delete(void *ptr);
 
-    typedef OSS_UINT32 trust;
+    typedef unsigned short int trust;
 
     TrustLevel();
     TrustLevel(const TrustLevel &);
@@ -400,7 +400,7 @@ public:
     void operator delete(void *ptr);
 
     typedef __shared1 RTreePolicy_namespace;
-    typedef OSS_INT32 indirections;
+    typedef int indirections;
     typedef __seqof15 statements;
 
     RTreePolicy();
@@ -767,7 +767,7 @@ private:
 class OSS_PUBLIC __shared4 : public OssList  /* SET OF */
 {
 public:
-    typedef OSS_INT32 component;
+    typedef int component;
 
     __shared4();
     __shared4(const __shared4 &);
@@ -1502,7 +1502,7 @@ public:
 
     typedef OssString ciphertext;
     typedef OssString salt;
-    typedef OSS_INT32 iterations;
+    typedef int iterations;
 
     KeyringAESCiphertext();
     KeyringAESCiphertext(const KeyringAESCiphertext &);
@@ -1999,7 +1999,7 @@ private:
     value value_field;
 };
 
-typedef OSS_INT32 Capability;
+typedef int Capability;
 
 typedef __shared1 AttestationHash;
 
@@ -2234,7 +2234,7 @@ public:
     const extensions & get_extensions() const;
     void set_extensions(const extensions &);
 private:
-    OSS_UINT32 bit_mask;
+    unsigned char bit_mask;
     hash hash_field;
     content content_field;
     location location_field;
@@ -2282,7 +2282,7 @@ public:
     int comment_is_present() const;
     void omit_comment();
 private:
-    OSS_UINT32 bit_mask;
+    unsigned char bit_mask;
     permissionSet permissionSet_field;
     permissions permissions_field;
     resource resource_field;
