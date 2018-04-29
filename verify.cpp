@@ -118,6 +118,23 @@ string base64_decode(string const& encoded_string) {
   return ret;
 }
 
+std::string string_to_hex(const std::string& input)
+{
+    static const char* const lut = "0123456789ABCDEF";
+    size_t len = input.length();
+    cout << "THIS IS LEN: " << len << "\n";
+
+    std::string output;
+    output.reserve(2 * len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        const unsigned char c = input[i];
+        output.push_back(lut[c >> 4]);
+        output.push_back(lut[c & 15]);
+    }
+    return output;
+}
+
 int main() {
     string str("Reading in PEM file");
     cout << str << "\n";
@@ -146,6 +163,7 @@ int main() {
     // unmarshal into WaveWireObject
     int code = 0;		/* return code */
     WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
+
     /*
      * Handle ASN.1/C++ runtime errors with C++ exceptions.
      */
@@ -189,16 +207,10 @@ int main() {
 	    }
 
 	    /*
-	     * Print the encoded message.
-	     */
-	    // printf("Printing the DER-encoded PDU...\n\n");
-	    // encodedData.print_hex(ctl);
-
-	    /*
 	     * Decode the encoded PDU whose encoding is in "encodedData".
 	     * An exception will be thrown on any error.
+         * Trace messages are turned on by using SOED
 	     */
-	    printf("\nThe decoder's trace messages (only for SOED)...\n\n");
 	    pdu.decode(ctl, encodedData);
 
 	    /*
@@ -249,20 +261,27 @@ int main() {
         attIndex = atsts.next(attIndex);
 
         AttestationReference::keys keys = atst->get_keys();
-        AVKeyAES128_GCM *vfk;
+        char *vfk;
+        string verifierBodyKey;
+        string verifierBodyNonce;
+        int vfkLen = 0;
         if (keys.empty()) {
             cout << "atst has no keys\n";
         }
         OssIndex keyIndex = keys.first();
         while (keyIndex != OSS_NOINDEX) {
-            printf("This should not print twice\n");
-            AttestationVerifierKey * key = keys.at(keyIndex);
-
+            AttestationVerifierKey *key = keys.at(keyIndex);
             AttestationVerifierKeySchemes_Type vf = key->get_value();
-            vfk = vf.get_AVKeyAES128_GCM();
+            vfk = vf.get_AVKeyAES128_GCM()->get_buffer();
             if (vfk == nullptr) {
                 cout << "atst key was not aes\n";
             } else {
+                vfkLen = vf.get_AVKeyAES128_GCM()->length();
+                cout << "got atst key of length " << vfkLen << "\n";
+                string verifierKey(vfk, vfk + vfkLen);
+                verifierBodyKey = verifierKey.substr(0, 16);
+                verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
+                cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
                 break;
             }
             keyIndex = keys.next(keyIndex);
@@ -274,11 +293,6 @@ int main() {
         AttestationReference::content *derEncodedData = atst->get_content();
         WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
 
-        /*
-         * Handle ASN.1/C++ runtime errors with C++ exceptions.
-         */
-        asn1_set_error_handling(throw_error, TRUE);
-
         try {
             objects_Control ctl;	/* ASN.1/C++ control object */
 
@@ -287,16 +301,17 @@ int main() {
                 WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
                 int encRule;	/* default encoding rules */
 
-// #ifdef RELAXED_MODE
-//                 /*
-//      * Set relaxed mode.
-//      */
-//     ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-//     ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-// #endif
+#ifdef RELAXED_MODE
+                /*
+     * Set relaxed mode.
+     */
+    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
+    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
+#endif
 
-//                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-//                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
 
                 /*
                  * Do decoding. Note that API is the same for any encoding method.
@@ -316,16 +331,9 @@ int main() {
                 }
 
                 /*
-                 * Print the encoded message.
-                 */
-                // printf("Printing the DER-encoded PDU...\n\n");
-                // encodedData.print_hex(ctl);
-
-                /*
                  * Decode the encoded PDU whose encoding is in "encodedData".
                  * An exception will be thrown on any error.
                  */
-                printf("\nThe decoder's trace messages (only for SOED)...\n\n");
                 pdu.decode(ctl, encodedData);
 
                 /*
@@ -357,7 +365,7 @@ int main() {
         }
 
         WaveAttestation *att = wwoPtr->get_value().get_WaveAttestation();
-        if (exp == nullptr) {
+        if (att == nullptr) {
             cerr << "DER is not a wave attestation\n";
             return -1;
         }
@@ -372,24 +380,20 @@ int main() {
             // decrypt body
             WR1BodyCiphertext *wr1body = att->get_tbs().get_body()
                     .get_value().get_WR1BodyCiphertext();
-
+            cout << "got wr1 body\n";
             if (wr1body == nullptr) {
                 cerr << "getting body ciphertext failed\n";
             }
 
             //TODO: skipping subject HI check
-            if (vfk) {
-                string verifierKey(vfk->get_buffer(), vfk->get_buffer() + vfk->length());
-                string verifierBodyKey = verifierKey.substr(0, 16);
-                string verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
 
+            if (vfk) {
+                cout << "decrypting attestation\n";
                 mbedtls_gcm_context ctx;
                 mbedtls_gcm_init( &ctx );
                 int ret = 0;
-
-                int keyLen = verifierBodyKey.length();
-                printf("Keylen: %d\n", keyLen);
-                ret = mbedtls_gcm_setkey( &ctx, MBEDTLS_CIPHER_ID_AES, (const unsigned char *) verifierBodyKey.c_str(), keyLen);
+                ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
+                    (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
                 if (ret) {
                     cerr << "aes set key failed\n";
                     return -1;
@@ -401,22 +405,26 @@ int main() {
                 int bodyLen = vbodyCipher.length();
                 unsigned char verifierBodyDER[bodyLen];
                 unsigned char tag_buf[16];
+                
+                cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
+                char *temp = vbodyCipher.get_buffer();
+                string s(temp, bodyLen);
+                string t(verifierBodyNonce.c_str(), 12);
+                cout << "ciphertext:\n" << string_to_hex(s) << "\n\n";
+                cout << "nonce:\n" << string_to_hex(t) << "\n\n";
                 ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
-                    16, additional, 0, (const unsigned char *) vbodyCipher.get_buffer(), verifierBodyDER, 16, tag_buf);
+                    verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
                 if (ret) {
                     cerr << "aes decrypt failed\n";
-                    return 01;
+                    return -1;
+                } else {
+                    cout << "decryption succeeded\n";
                 }
-                mbedtls_gcm_free( &ctx );
+                mbedtls_gcm_free(&ctx);
 
                 //unmarshal into WR1VerifierBody
                 code = 0;		/* return code */
                 WR1VerifierBody *vbody = NULL;	/* pointer to decoded data */
-
-                /*
-                * Handle ASN.1/C++ runtime errors with C++ exceptions.
-                */
-                asn1_set_error_handling(throw_error, TRUE);
 
                 try {
                 objects_Control ctl;	/* ASN.1/C++ control object */
@@ -435,7 +443,8 @@ int main() {
             #endif
 
                     ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-                    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+                    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+                    ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS | PRINT_DECODER_INPUT | PRINT_HEX_WITH_ASCII);
 
                     /*
                     * Do decoding. Note that API is the same for any encoding method.
@@ -448,22 +457,15 @@ int main() {
                     * Set the decoder's input.
                     */
                     if (encRule == OSS_DER) {
-                    encodedData.set_buffer(bodyLen, (char *) verifierBodyDER);
+                        encodedData.set_buffer(bodyLen-16, (char *) verifierBodyDER);
                     } else {
                         cout << "can't find encoding rule\n";
                     }
 
                     /*
-                    * Print the encoded message.
-                    */
-                    printf("Printing the DER-encoded PDU...\n\n");
-                    encodedData.print_hex(ctl);
-
-                    /*
                     * Decode the encoded PDU whose encoding is in "encodedData".
                     * An exception will be thrown on any error.
                     */
-                    printf("\nThe decoder's trace messages (only for SOED)...\n\n");
                     pdu.decode(ctl, encodedData);
 
                     /*
@@ -498,8 +500,8 @@ int main() {
                 WR1VerifierBody::attestationVerifierBody decryptedBody = 
                     vbody->get_attestationVerifierBody();
             }
-
             // TODO: no attestation key, decrypt in prover role
+
         } else {
             cerr << "unsupported body scheme\n";
             return -1;
@@ -611,3 +613,5 @@ int main() {
     cout << "Finished verifying proof\n";
     return 0;
 }
+
+
