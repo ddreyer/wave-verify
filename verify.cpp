@@ -139,7 +139,7 @@ int main() {
     string str("Reading in PEM file");
     cout << str << "\n";
 
-    ifstream t("proof.pem");
+    ifstream t("proof0.pem");
     string pemStr((istreambuf_iterator<char>(t)),
                              istreambuf_iterator<char>());
 
@@ -150,11 +150,11 @@ int main() {
     // TODO: base64_decode doesn't work right now
     // string derEncodedData(base64_decode(pemStr));
     
-    ifstream v("proof_bin.der");
+    ifstream v("proof2.der");
     string derEncodedData((istreambuf_iterator<char>(v)),
                              istreambuf_iterator<char>());
-    printf("Binary size: %lu\n", derEncodedData.length());
 
+    printf("Binary size: %lu\n", derEncodedData.length());
     if (derEncodedData.length() == 0) {
     	cerr << "could not decode proof from DER format\n";
         return -1;
@@ -249,7 +249,112 @@ int main() {
         return -1;
     }
 
-    // // TODO: skip parsing Entities
+    // parse entities
+    WaveExplicitProof::entities ents = exp->get_entities();
+    cout << "entities retrieved\n";
+    OssIndex entIndex = ents.first();
+    while (entIndex != OSS_NOINDEX) {
+        OssString *ent = ents.at(entIndex);
+        // retrieve next entity to parse
+        entIndex = ents.next(entIndex);
+
+        WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
+
+        try {
+            objects_Control ctl;	/* ASN.1/C++ control object */
+
+            try {
+                EncodedBuffer encodedData;	/* encoded data */
+                WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
+                int encRule;	/* default encoding rules */
+
+#ifdef RELAXED_MODE
+                /*
+     * Set relaxed mode.
+     */
+    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
+    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
+#endif
+
+                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
+
+                /*
+                 * Do decoding. Note that API is the same for any encoding method.
+                 * Get encoding rules which were specified on the ASN.1 compiler
+                 * command line.
+                 */
+                encRule = ctl.getEncodingRules();
+
+                /*
+                 * Set the decoder's input.
+                 */
+                if (encRule == OSS_DER) {
+                    encodedData.set_buffer(ent->length(),
+                                           ent->get_buffer());
+                } else {
+                    cout << "can't find encoding rule\n";
+                }
+
+                /*
+                 * Decode the encoded PDU whose encoding is in "encodedData".
+                 * An exception will be thrown on any error.
+                 */
+                pdu.decode(ctl, encodedData);
+
+                /*
+                 * Read decoded data.
+                 */
+                wwoPtr = pdu.get_data();
+            } catch (ASN1Exception &exc) {
+                /*
+                 * An error occurred during decoding.
+                 */
+                code = report_error(&ctl, "decode", exc);
+            }
+        } catch (ASN1Exception &exc) {
+            /*
+             * An error occurred during control object initialization.
+             */
+            code = report_error(NULL, "initialization", exc);
+        } catch (...) {
+            /*
+             * An unexpected exception is caught.
+             */
+            printf("Unexpected exception caught.\n");
+            code = -1;
+        }
+
+        if (code) {
+            cerr << "failed to decode entity\n";
+            return -1;
+        }
+
+        WaveEntity *entity = wwoPtr->get_value().get_WaveEntity();
+        if (entity == nullptr) {
+            // maybe this is an entity secret
+            WaveEntitySecret *es = wwoPtr->get_value().get_WaveEntitySecret();
+            if (es == nullptr) {
+                cerr << "DER is not a wave entity\n";
+                return -1;
+            }
+            entity = &es->get_entity();
+        }
+
+        // check the signature
+        EntityPublicKey::key entKey = entity->get_tbs().get_verifyingKey().get_key();
+        OssEncOID entKeyId = entKey.get_type_id();
+        switch (entKeyId) {
+            case ed25519_id:
+            case curve25519_id:
+            case ibe_bn256_params_id:
+            case ibe_bn256_public_id:
+            case oaque_bn256_s20_attributeset_id:
+            default: cerr << "entity uses unsupported key scheme\n";
+                return -1;
+        }
+    }
 
     // // retrieve attestations
     WaveExplicitProof::attestations atsts = exp->get_attestations();
@@ -385,7 +490,16 @@ int main() {
                 cerr << "getting body ciphertext failed\n";
             }
 
-            //TODO: skipping subject HI check
+            // checking subject HI instance
+            OssEncOID hashSchemeID = att->get_tbs().get_subject().get_type_id();
+            if (hashSchemeID == keccak_256_id) {
+                HashKeccak_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashKeccak_256();
+            } else if (hashSchemeID == sha3_256_id) {
+                HashSha3_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashSha3_256();
+            } else {
+                cerr << "unsupported subject hash scheme instance\n";
+                return -1;
+            }
 
             if (vfk) {
                 cout << "decrypting attestation\n";
@@ -418,6 +532,9 @@ int main() {
                     cerr << "aes decrypt failed\n";
                     return -1;
                 } else {
+                    unsigned char *hah = verifierBodyDER;
+                    string v((const char *)hah, bodyLen-16);
+                    cout << "object:\n" << string_to_hex(v) << "\n\n";
                     cout << "decryption succeeded\n";
                 }
                 mbedtls_gcm_free(&ctx);
