@@ -1,4 +1,3 @@
-#include <string>
 #include <fstream>
 #include <streambuf>
 #include <iostream>
@@ -7,6 +6,8 @@
 #include "objects.h"
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
+
+const int CapCertification = 1;
 
 using namespace std;
 
@@ -139,7 +140,7 @@ int main() {
     string str("Reading in PEM file");
     cout << str << "\n";
 
-    ifstream t("proof0.pem");
+    ifstream t("proof.pem");
     string pemStr((istreambuf_iterator<char>(t)),
                              istreambuf_iterator<char>());
 
@@ -150,7 +151,7 @@ int main() {
     // TODO: base64_decode doesn't work right now
     // string derEncodedData(base64_decode(pemStr));
     
-    ifstream v("proof2.der");
+    ifstream v("proof.der");
     string derEncodedData((istreambuf_iterator<char>(v)),
                              istreambuf_iterator<char>());
 
@@ -343,16 +344,90 @@ int main() {
         }
 
         // check the signature
+        // TODO: finish some of these if statements
         EntityPublicKey::key entKey = entity->get_tbs().get_verifyingKey().get_key();
         OssEncOID entKeyId = entKey.get_type_id();
-        switch (entKeyId) {
-            case ed25519_id:
-            case curve25519_id:
-            case ibe_bn256_params_id:
-            case ibe_bn256_public_id:
-            case oaque_bn256_s20_attributeset_id:
-            default: cerr << "entity uses unsupported key scheme\n";
+        if (entKeyId == ed25519_id) {
+            Public_Ed25519 *ks = entKey.get_value().get_Public_Ed25519();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
                 return -1;
+            }
+            if (ks->length() != 32) {
+                cerr << "key length is incorrect\n";
+                return -1;
+            }
+            EntityPublicKey::capabilityFlags caps = 
+                entity->get_tbs().get_verifyingKey().get_capabilityFlags();
+            OssIndex capIndex = caps.first();
+            bool hasCapability = false;
+            while (capIndex != OSS_NOINDEX) {
+                int *capInt = caps.at(capIndex);
+                // retrieve next entity to parse
+                capIndex = caps.next(capIndex);
+                if (*capInt == CapCertification) {
+                    hasCapability = true;
+                    break;
+                }
+            }
+
+            if (!hasCapability) {
+                cerr << "this key cannot perform certifications\n";
+                return -1;
+            }
+
+            // TODO: figure out ent.TBS.Raw
+            if (!ed25519_verify((const unsigned char *) (entity->get_signature().get_buffer()), 
+                (const unsigned char *) "temp", 4, (const unsigned char *) (ks->get_buffer()))) {
+                cerr << "entity ed25519 signature invalid\n";
+                return -1;
+            }
+            cout << "valid entity signature\n";
+            // TODO: rv.revocations
+            // TODO: rv.extensions
+
+            // TODO: get TBS keys
+
+        } else if (entKeyId == curve25519_id) {
+            Public_Curve25519 *ks = entKey.get_value().get_Public_Curve25519();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
+                return -1;
+            }
+            if (ks->length() != 32) {
+                cerr << "key length is incorrect\n";
+                return -1;
+            }
+        } else if (entKeyId == ibe_bn256_params_id) {
+            Params_BN256_IBE *ks = entKey.get_value().get_Params_BN256_IBE();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
+                return -1;
+            }
+        } else if (entKeyId == ibe_bn256_public_id) {
+            // not done
+            Public_BN256_IBE *ks = entKey.get_value().get_Public_BN256_IBE();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
+                return -1;
+            }
+        } else if (entKeyId == oaque_bn256_s20_params_id) {
+            // not done
+            Params_BN256_OAQUE *ks = entKey.get_value().get_Params_BN256_OAQUE();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
+                return -1;
+            }
+        } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
+            // noe done
+            Public_OAQUE *ks = entKey.get_value().get_Public_OAQUE();
+            if (ks == nullptr) {
+                cerr << "entity key is null\n";
+                return -1;
+            }
+        } else {
+            cerr << "entity uses unsupported key scheme\n";
+            return -1;
         }
     }
 
