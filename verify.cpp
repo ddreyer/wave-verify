@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <string>
+#include <list>
 
 #include "objects.h"
 #include "aes-gcm/gcm.h"
@@ -67,9 +68,6 @@ static int report_error(OssControl *ctl, const char *where, ASN1Exception &exc)
     return code;
 }
 
-/*
- * https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
-*/
 static inline bool is_base64(unsigned char c) {
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
@@ -251,12 +249,14 @@ int main() {
     // parse entities
     WaveExplicitProof::entities ents = exp->get_entities();
     cout << "entities retrieved\n";
+    list<WaveEntity*> entList;
     OssIndex entIndex = ents.first();
     while (entIndex != OSS_NOINDEX) {
         OssString *ent = ents.at(entIndex);
         // retrieve next entity to parse
         entIndex = ents.next(entIndex);
 
+        // gofunc: ParseEntity
         WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
 
         try {
@@ -340,7 +340,7 @@ int main() {
             }
             entity = &es->get_entity();
         }
-
+        // gofunc: parseEntityFromObject
         // check the signature
         // TODO: finish some of these if statements
         EntityPublicKey::key entKey = entity->get_tbs().get_verifyingKey().get_key();
@@ -375,11 +375,11 @@ int main() {
             }
 
             // TODO: figure out ent.TBS.Raw
-            if (!ed25519_verify((const unsigned char *) (entity->get_signature().get_buffer()), 
-                (const unsigned char *) "temp", 4, (const unsigned char *) (ks->get_buffer()))) {
-                cerr << "entity ed25519 signature invalid\n";
-                return -1;
-            }
+            // if (!ed25519_verify((const unsigned char *) (entity->get_signature().get_buffer()), 
+            //     (const unsigned char *) "temp", 4, (const unsigned char *) (ks->get_buffer()))) {
+            //     cerr << "entity ed25519 signature invalid\n";
+            //     return -1;
+            // }
             cout << "valid entity signature\n";
             // TODO: rv.revocations
             // TODO: rv.extensions
@@ -417,7 +417,7 @@ int main() {
                 return -1;
             }
         } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
-            // noe done
+            // not done
             Public_OAQUE *ks = entKey.get_value().get_Public_OAQUE();
             if (ks == nullptr) {
                 cerr << "entity key is null\n";
@@ -427,9 +427,11 @@ int main() {
             cerr << "entity uses unsupported key scheme\n";
             return -1;
         }
+        
+        entList.push_back(entity);
     }
 
-    // // retrieve attestations
+    // retrieve attestations
     WaveExplicitProof::attestations atsts = exp->get_attestations();
     cout << "attestations retrieved\n";
     OssIndex attIndex = atsts.first();
@@ -464,7 +466,7 @@ int main() {
             }
             keyIndex = keys.next(keyIndex);
         }
-
+        // gofunc: ParseAttestation
         // parse attestation
         // TODO: figure out if attestation needs to be unmarshaled every time
         int code = 0;		/* return code */
@@ -550,6 +552,8 @@ int main() {
 
         // TODO: skipping return value formation, subject
 
+        // gofunc: DecryptBody
+        AttestationVerifierBody decryptedBody;
         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
         if (schemeID == unencrypted_body_scheme) {
             cout << "unencrypted body scheme, currently not supported\n";
@@ -687,8 +691,7 @@ int main() {
                     cerr << "code #3 failed\n";
                     return -1;
                 }
-                WR1VerifierBody::attestationVerifierBody decryptedBody = 
-                    vbody->get_attestationVerifierBody();
+                decryptedBody = vbody->get_attestationVerifierBody();
             }
             // TODO: no attestation key, decrypt in prover role
 
@@ -697,8 +700,60 @@ int main() {
             return -1;
         }
 
-        // TODO: do stuff here after decrypting body
+        LocationURL *attesterLoc = 
+            decryptedBody.get_attesterLocation().get_value().get_LocationURL();
+        OssEncOID attestId = decryptedBody.get_attester().get_type_id();
+        // gofunc: EntityByHashLoc
+        if (attestId == keccak_256_id) {
+            HashKeccak_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashKeccak_256();
+            if (attesterHash == nullptr) {
+                cerr << "could not get attester hash\n";
+                return -1;
+            }
+            if (attesterHash->length() != 32) {
+                cerr << "attester hash not valid\n";
+                return -1;
+            }
+            // TODO: attestLoc never used?
+            // TODO: loop through entities?
+            // TODO: loop through entity secrets?
+        } else if (attestId == sha3_256_id) {
+            HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
+            if (attesterHash == nullptr) {
+                cerr << "could not get attester hash\n";
+                return -1;
+            }
+            if (attesterHash->length() != 32) {
+                cerr << "attester hash not valid\n";
+                return -1;
+            }
+            //TODO: support non-keccak schemes
+        } else {
+            cerr << "unsupported attester hash scheme id\n";
+            return -1;
+        }
 
+        SignedOuterKey *_ = decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
+        if (_ == nullptr) {
+            cerr << "outer signature binding not supported\n";
+            return -1;
+        }
+        // gofunc: VerifyBinding
+        // At this time we only know how to extract the key from an ed25519 outer signature
+        Ed25519OuterSignature *osig = att->get_outerSignature().get_value().get_Ed25519OuterSignature();
+        if (osig == nullptr) {
+            cerr << "unknown outer signature type\n";
+            return -1;
+        }
+
+        SignedOuterKey *binding = 
+            decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
+        if (binding == nullptr) {
+            cerr << "this is not really a signed outer key\n";
+            return -1;
+        }
+        // TODO: figure out marshaling of binding.TBS
+        
         // check signature
         Ed25519OuterSignature *osig = 
             att->get_outerSignature().get_value().get_Ed25519OuterSignature();
