@@ -174,14 +174,6 @@ int main() {
 	    WaveWireObject_PDU pdu;	 /* coding container for a WWO value */ 
 	    int encRule;	/* default encoding rules */
 
-#ifdef RELAXED_MODE
-	    /*
-	     * Set relaxed mode.
-	     */
-	    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-	    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-#endif
-
 	    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
 	    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
         ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
@@ -266,14 +258,6 @@ int main() {
                 EncodedBuffer encodedData;	/* encoded data */
                 WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
                 int encRule;	/* default encoding rules */
-
-#ifdef RELAXED_MODE
-                /*
-     * Set relaxed mode.
-     */
-    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-#endif
 
                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
@@ -481,14 +465,6 @@ int main() {
                 WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
                 int encRule;	/* default encoding rules */
 
-#ifdef RELAXED_MODE
-                /*
-     * Set relaxed mode.
-     */
-    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-#endif
-
                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
                 ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
@@ -628,14 +604,6 @@ int main() {
                     WR1VerifierBody_PDU pdu;	 /* coding container for a WWO value */ 
                     int encRule;	/* default encoding rules */
 
-            #ifdef RELAXED_MODE
-                    /*
-                    * Set relaxed mode.
-                    */
-                    ctl.setEncodingFlags(NOCONSTRAIN | RELAXDER);
-                    ctl.setDecodingFlags(NOCONSTRAIN | RELAXDER);
-            #endif
-
                     ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
                     ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
                     ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS | PRINT_DECODER_INPUT | PRINT_HEX_WITH_ASCII);
@@ -742,7 +710,7 @@ int main() {
         // At this time we only know how to extract the key from an ed25519 outer signature
         Ed25519OuterSignature *osig = att->get_outerSignature().get_value().get_Ed25519OuterSignature();
         if (osig == nullptr) {
-            cerr << "unknown outer signature type\n";
+            cerr << "unknown outer signature type/signature scheme not supported\n";
             return -1;
         }
 
@@ -753,14 +721,21 @@ int main() {
             return -1;
         }
         // TODO: figure out marshaling of binding.TBS
-        
-        // check signature
-        Ed25519OuterSignature *osig = 
-            att->get_outerSignature().get_value().get_Ed25519OuterSignature();
-        if (osig == nullptr) {
-            cerr << "Outer signature lied about its scheme/is not supported\n";
+
+        // TODO: check signature
+
+        // Now we know the binding is valid, check the key is the same
+        if (binding->get_tbs().get_outerSignatureScheme() != ephemeral_ed25519) {
+            cerr << "outer signature scheme invalid\n";
             return -1;
         }
+
+        if (binding->get_tbs().get_verifyingKey() != osig->get_verifyingKey()) {
+            cerr << "bound key does not match\n";
+            return -1;
+        }
+        // check signature
+        // gofunc: VerifySignature
 
         // TODO: figure out marshaling of attestation TBS
     //     const char *where = "initialization";
@@ -773,14 +748,6 @@ int main() {
     //         ossEncodingRules encRule;	/* default encoding rules */
 
     //         where = "initial settings";
-
-    // #ifdef RELAXED_MODE
-    //         /*
-    //         * Set relaxed mode.
-    //         */
-    //         ctl.setEncodingFlags(NOCONSTRAIN | RELAXBER | RELAXPER);
-    //         ctl.setDecodingFlags(NOCONSTRAIN | RELAXBER | RELAXPER);
-    // #endif
 
     //         ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
     //         ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
