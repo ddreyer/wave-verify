@@ -14,6 +14,29 @@ const int CapCertification = 1;
 
 using namespace std;
 
+class EntityItem {
+private:
+    WaveEntity *entity;
+    string entityDer;
+public:
+    EntityItem(WaveEntity *entity, string entityDer);
+    WaveEntity * get_entity();
+    string get_der();
+};
+
+EntityItem::EntityItem(WaveEntity *ent, string entDer) {
+    entity = ent;
+    entityDer = entDer;
+}
+
+WaveEntity * EntityItem::get_entity() {
+    return entity;
+}
+
+string EntityItem::get_der() {
+    return entityDer;
+}
+
 class ASN1Exception {
 private:
     int code;
@@ -23,18 +46,15 @@ public:
     int get_code() const;
 };
 
-ASN1Exception::ASN1Exception(int asn1_code)
-{
+ASN1Exception::ASN1Exception(int asn1_code) {
     code = asn1_code;
 }
 
-ASN1Exception::ASN1Exception(const ASN1Exception & that)
-{
+ASN1Exception::ASN1Exception(const ASN1Exception & that) {
     code = that.code;
 }
 
-int ASN1Exception::get_code() const
-{
+int ASN1Exception::get_code() const {
     return code;
 }
 
@@ -42,13 +62,11 @@ int ASN1Exception::get_code() const
  * The ASN.1/C++ error reporting function.
  */
 
-void throw_error(int code)
-{
+void throw_error(int code) {
     throw ASN1Exception(code);
 }
 
-static int report_error(OssControl *ctl, const char *where, ASN1Exception &exc) 
-{
+static int report_error(OssControl *ctl, const char *where, ASN1Exception &exc) {
     int code = exc.get_code();
     const char *msg;
 
@@ -119,8 +137,7 @@ string base64_decode(string const& encoded_string) {
     return ret;
 }
 
-std::string string_to_hex(const std::string& input)
-{
+std::string string_to_hex(const std::string& input) {
     static const char* const lut = "0123456789ABCDEF";
     size_t len = input.length();
     cout << "THIS IS LEN: " << len << "\n";
@@ -241,10 +258,11 @@ int main() {
     // parse entities
     WaveExplicitProof::entities ents = exp->get_entities();
     cout << "entities retrieved\n";
-    list<WaveEntity*> entList;
+    list<EntityItem> entList;
     OssIndex entIndex = ents.first();
     while (entIndex != OSS_NOINDEX) {
         OssString *ent = ents.at(entIndex);
+        string entStr(ent->get_buffer(), ent->length());
         // retrieve next entity to parse
         entIndex = ents.next(entIndex);
 
@@ -261,7 +279,7 @@ int main() {
 
                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
+                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS | PRINT_DECODER_INPUT | PRINT_HEX_WITH_ASCII);
 
                 /*
                  * Do decoding. Note that API is the same for any encoding method.
@@ -322,11 +340,10 @@ int main() {
                 cerr << "DER is not a wave entity\n";
                 return -1;
             }
-            entity = &es->get_entity();
+            entity = &(es->get_entity());
         }
         // gofunc: parseEntityFromObject
         // check the signature
-        // TODO: finish some of these if statements
         EntityPublicKey::key entKey = entity->get_tbs().get_verifyingKey().get_key();
         OssEncOID entKeyId = entKey.get_type_id();
         if (entKeyId == ed25519_id) {
@@ -339,13 +356,14 @@ int main() {
                 cerr << "key length is incorrect\n";
                 return -1;
             }
+            // gofunc: VerifyCertify
+            // gofunc: HasCapability
             EntityPublicKey::capabilityFlags caps = 
                 entity->get_tbs().get_verifyingKey().get_capabilityFlags();
             OssIndex capIndex = caps.first();
             bool hasCapability = false;
             while (capIndex != OSS_NOINDEX) {
                 int *capInt = caps.at(capIndex);
-                // retrieve next entity to parse
                 capIndex = caps.next(capIndex);
                 if (*capInt == CapCertification) {
                     hasCapability = true;
@@ -358,6 +376,7 @@ int main() {
                 return -1;
             }
 
+            // gofunc: Verify
             // TODO: figure out ent.TBS.Raw
             // if (!ed25519_verify((const unsigned char *) (entity->get_signature().get_buffer()), 
             //     (const unsigned char *) "temp", 4, (const unsigned char *) (ks->get_buffer()))) {
@@ -365,11 +384,6 @@ int main() {
             //     return -1;
             // }
             cout << "valid entity signature\n";
-            // TODO: rv.revocations
-            // TODO: rv.extensions
-
-            // TODO: get TBS keys
-
         } else if (entKeyId == curve25519_id) {
             Public_Curve25519 *ks = entKey.get_value().get_Public_Curve25519();
             if (ks == nullptr) {
@@ -380,39 +394,108 @@ int main() {
                 cerr << "key length is incorrect\n";
                 return -1;
             }
+            cerr << "this key cannot perform certifications\n";
+            return -1;
         } else if (entKeyId == ibe_bn256_params_id) {
             Params_BN256_IBE *ks = entKey.get_value().get_Params_BN256_IBE();
             if (ks == nullptr) {
                 cerr << "entity key is null\n";
                 return -1;
             }
+            cerr << "this key cannot perform certifications\n";
+            return -1;
         } else if (entKeyId == ibe_bn256_public_id) {
-            // not done
             Public_BN256_IBE *ks = entKey.get_value().get_Public_BN256_IBE();
             if (ks == nullptr) {
                 cerr << "entity key is null\n";
                 return -1;
             }
+            cerr << "this key cannot perform certifications\n";
+            return -1;
         } else if (entKeyId == oaque_bn256_s20_params_id) {
-            // not done
             Params_BN256_OAQUE *ks = entKey.get_value().get_Params_BN256_OAQUE();
             if (ks == nullptr) {
                 cerr << "entity key is null\n";
                 return -1;
             }
+            cerr << "this key cannot perform certifications\n";
+            return -1;
         } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
-            // not done
             Public_OAQUE *ks = entKey.get_value().get_Public_OAQUE();
             if (ks == nullptr) {
                 cerr << "entity key is null\n";
                 return -1;
             }
+            cerr << "this key cannot perform certifications\n";
+            return -1;
         } else {
             cerr << "entity uses unsupported key scheme\n";
             return -1;
         }
-        
-        entList.push_back(entity);
+
+        // Entity appears ok, let's unpack it further
+        // TODO: rv.revocations
+        // TODO: rv.extensions
+
+        WaveEntity::tbs::keys tbsKeys = entity->get_tbs().get_keys();
+        OssIndex tbsIndex = tbsKeys.first();
+        while (tbsIndex != OSS_NOINDEX) {
+            EntityPublicKey *tbsKey = tbsKeys.at(tbsIndex);
+            // retrieve next TBS key
+            tbsIndex = tbsKeys.next(tbsIndex);
+            EntityPublicKey::key lkey = tbsKey->get_key();
+            OssEncOID lkeyId = lkey.get_type_id();
+            if (lkeyId == ed25519_id) {
+                Public_Ed25519 *ks = lkey.get_value().get_Public_Ed25519();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+                if (ks->length() != 32) {
+                    cerr << "key length is incorrect\n";
+                    return -1;
+                }
+            } else if (lkeyId == curve25519_id) {
+                Public_Curve25519 *ks = lkey.get_value().get_Public_Curve25519();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+                if (ks->length() != 32) {
+                    cerr << "key length is incorrect\n";
+                    return -1;
+                }
+            } else if (lkeyId == ibe_bn256_params_id) {
+                Params_BN256_IBE *ks = lkey.get_value().get_Params_BN256_IBE();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+            } else if (lkeyId == ibe_bn256_public_id) {
+                Public_BN256_IBE *ks = lkey.get_value().get_Public_BN256_IBE();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+            } else if (lkeyId == oaque_bn256_s20_params_id) {
+                Params_BN256_OAQUE *ks = lkey.get_value().get_Params_BN256_OAQUE();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+            } else if (lkeyId == oaque_bn256_s20_attributeset_id) {
+                Public_OAQUE *ks = lkey.get_value().get_Public_OAQUE();
+                if (ks == nullptr) {
+                    cerr << "tbs key is null\n";
+                    return -1;
+                }
+            } else {
+                cerr << "tbs key uses unsupported key scheme\n";
+                return -1;
+            }
+        }
+        EntityItem e(entity, entStr);
+        entList.push_back(e);
     }
 
     // retrieve attestations
@@ -565,7 +648,6 @@ int main() {
                     cerr << "aes set key failed\n";
                     return -1;
                 }
-
         
                 WR1BodyCiphertext::verifierBodyCiphertext vbodyCipher = wr1body->get_verifierBodyCiphertext();
                 const unsigned char additional[] = {};
@@ -670,7 +752,13 @@ int main() {
 
         LocationURL *attesterLoc = 
             decryptedBody.get_attesterLocation().get_value().get_LocationURL();
+        if (attesterLoc == nullptr) {
+            cerr << "could not get attester loc\n";
+            return -1;
+        }
+
         OssEncOID attestId = decryptedBody.get_attester().get_type_id();
+        WaveEntity *attester;
         // gofunc: EntityByHashLoc
         if (attestId == keccak_256_id) {
             HashKeccak_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashKeccak_256();
@@ -683,7 +771,15 @@ int main() {
                 return -1;
             }
             // TODO: attestLoc never used?
-            // TODO: loop through entities?
+            // loop through entities
+            for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
+                // hash this and compare to attesterHash
+                // it->get_der();
+                // attesterHash->get_buffer();
+                // if () {
+                //     attester = it->get_entity();
+                // }
+            }
             // TODO: loop through entity secrets?
         } else if (attestId == sha3_256_id) {
             HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
@@ -720,9 +816,43 @@ int main() {
             cerr << "this is not really a signed outer key\n";
             return -1;
         }
-        // TODO: figure out marshaling of binding.TBS
 
-        // TODO: check signature
+        // if (attester == nullptr) {
+        //     cerr << "no attester\n";
+        //     return -1;
+        // }
+
+        // // gofunc: VerifyCertify
+        // // gofunc: HasCapability
+        // // TODO: this is checked when we parsed entities, so redundant?
+        // EntityPublicKey::capabilityFlags caps = 
+        //     attester->get_tbs().get_verifyingKey().get_capabilityFlags();
+        // OssIndex capIndex = caps.first();
+        // bool hasCapability = false;
+        // while (capIndex != OSS_NOINDEX) {
+        //     int *capInt = caps.at(capIndex);
+        //     capIndex = caps.next(capIndex);
+        //     if (*capInt == CapCertification) {
+        //         hasCapability = true;
+        //         break;
+        //     }
+        // }
+
+        // if (!hasCapability) {
+        //     cerr << "this key cannot perform certifications\n";
+        //     return -1;
+        // }
+
+        // gofunc: Verify
+        // TODO: figure out marshaling of binding.TBS
+        // Public_Ed25519 *attesterKey = 
+        //     attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
+        // if (!ed25519_verify((const unsigned char *) (binding->get_signature().get_buffer()), 
+        //     (const unsigned char *) "temp", 4, (const unsigned char *) (attesterKey->get_buffer()))) {
+        //     cerr << "outer signature binding invalid\n";
+        //     return -1;
+        // }
+        cout << "valid outer signature binding\n";
 
         // Now we know the binding is valid, check the key is the same
         if (binding->get_tbs().get_outerSignatureScheme() != ephemeral_ed25519) {
@@ -825,5 +955,3 @@ int main() {
     cout << "Finished verifying proof\n";
     return 0;
 }
-
-
