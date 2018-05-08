@@ -3,3 +3,5 @@ verify
 .idea*
 .vscode*
 *.o
+objects.h
+objects.cpp

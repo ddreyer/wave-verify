@@ -733,7 +733,6 @@ int verify(string pemContent) {
                 cerr << "attester hash not valid\n";
                 return -1;
             }
-            // TODO: attestLoc never used?
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
                 Keccak k(Keccak::Keccak256);
@@ -809,10 +808,76 @@ int verify(string pemContent) {
 
         // gofunc: Verify
         // TODO: figure out marshaling of binding.TBS
+        const char *where = "initialization";
+        EncodedBuffer encodedData;	/* encoded data */
+        try {
+        objects_Control ctl;	/* ASN.1/C++ control object */
+
+        try {
+            SignedOuterKeyTbs_PDU pdu;		/* coding container for binding TBS value */
+            ossEncodingRules encRule;	/* default encoding rules */
+
+            where = "initial settings";
+
+            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
+            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+            /*
+            * Get the encoding rule, which is set currently.
+            */
+            encRule = ctl.getEncodingRules();
+
+            /*
+            * Set the data to the coding container.
+            */
+            pdu.set_data(binding->get_tbs());
+
+            /*
+            * Print the input to the encoder.
+            */
+            printf("The input to the encoder...\n\n");
+            where = "printing";
+            pdu.print(ctl);
+
+            /*
+            * Encode the object.
+            */
+            printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+            where = "encoding";
+            pdu.encode(ctl, encodedData);
+            printf("\nPDU encoded successfully.\n");
+
+            /*
+            * Printing the encoded PDU.
+            */
+            printf("\n%s-Encoded PDU...\n\n",
+                encRule == OSS_BER ? "BER": "PER");
+            where = "printing";
+            encodedData.print_hex(ctl);
+            
+        } catch (ASN1Exception &exc) {
+            /*
+            * An error occurred during decoding.
+            */
+            code = report_error(&ctl, where, exc);
+        }
+        } catch (ASN1Exception &exc) {
+        /*
+        * An error occurred during control object initialization.
+        */
+        code = report_error(NULL, where, exc);
+        } catch (...) {
+        /*
+        * An unexpected exception is caught.
+        */
+        printf("Unexpected exception caught.\n");
+        code = -1;
+        }
+
         Public_Ed25519 *attesterKey = 
             attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
         if (!ed25519_verify((const unsigned char *) (binding->get_signature().get_buffer()), 
-            (const unsigned char *) "temp", 4, (const unsigned char *) (attesterKey->get_buffer()))) {
+            (const unsigned char *) encodedData.get_data(), encodedData.get_length(), (const unsigned char *) (attesterKey->get_buffer()))) {
             cerr << "outer signature binding invalid\n";
             return -1;
         }
@@ -908,9 +973,9 @@ int verify(string pemContent) {
         //TODO: fix this
         if (ed25519_verify((const unsigned char *) (sig.get_buffer()), 
                 (const unsigned char *) "temp", 4, (const unsigned char *) (vKey.get_buffer()))) {
-            cout << "valid signature\n";
+            cout << "valid outer signature\n";
         } else {
-            cerr << "invalid signature\n";
+            cerr << "invalid outer signature\n";
             return -1;
         }
 

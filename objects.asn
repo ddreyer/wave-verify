@@ -336,11 +336,13 @@ BEGIN
   }
 
   SignedOuterKey ::= SEQUENCE {
-    tbs SEQUENCE {
-      outerSignatureScheme OBJECT IDENTIFIER,
-      verifyingKey OCTET STRING
-    },
+    tbs SignedOuterKeyTbs,
     signature OCTET STRING
+  }
+
+  SignedOuterKeyTbs ::= SEQUENCE {
+    outerSignatureScheme OBJECT IDENTIFIER,
+    verifyingKey OCTET STRING
   }
 
   TrustLevel ::= SEQUENCE {
@@ -444,8 +446,10 @@ OuterSignatureSchemes TYPE-IDENTIFIER ::= {
 --------------------------------------------------------------------------------
 outer-signature-binding-scheme OBJECT IDENTIFIER ::= { wave-id 6 }
 signed-outer-key OBJECT IDENTIFIER ::= { outer-signature-binding-scheme 1 }
+signed-outer-key-tbs OBJECT IDENTIFIER ::= { outer-signature-binding-scheme 2 }
 OuterSignatureBindingSchemes TYPE-IDENTIFIER ::= {
- {SignedOuterKey IDENTIFIED BY signed-outer-key},
+ {SignedOuterKey IDENTIFIED BY signed-outer-key} |
+ {SignedOuterKeyTbs IDENTIFIED BY signed-outer-key-tbs},
  ...
 }
 
