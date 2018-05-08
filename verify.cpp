@@ -807,7 +807,6 @@ int verify(string pemContent) {
         }
 
         // gofunc: Verify
-        // TODO: figure out marshaling of binding.TBS
         const char *where = "initialization";
         EncodedBuffer encodedData;	/* encoded data */
         try {
@@ -876,8 +875,13 @@ int verify(string pemContent) {
 
         Public_Ed25519 *attesterKey = 
             attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
-        if (!ed25519_verify((const unsigned char *) (binding->get_signature().get_buffer()), 
-            (const unsigned char *) encodedData.get_data(), encodedData.get_length(), (const unsigned char *) (attesterKey->get_buffer()))) {
+        string bindingSig(binding->get_signature().get_buffer(), binding->get_signature().length());
+        string attKey(attesterKey->get_buffer(), attesterKey->length());
+        if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
+            (const unsigned char *) encodedData.get_data(), encodedData.get_length(), 
+            (const unsigned char *) attKey.c_str())) {
+            cerr << "signature: " << string_to_hex(bindingSig);
+            cerr << "\nkey: " << string_to_hex(attKey) << "\n";
             cerr << "outer signature binding invalid\n";
             return -1;
         }
@@ -895,73 +899,72 @@ int verify(string pemContent) {
         }
         // check signature
         // gofunc: VerifySignature
-
         // TODO: figure out marshaling of attestation TBS
-    //     const char *where = "initialization";
-    //     try {
-    //     objects_Control ctl;	/* ASN.1/C++ control object */
+        where = "initialization";
+        EncodedBuffer encData;	/* encoded data */
+        try {
+        objects_Control ctl;	/* ASN.1/C++ control object */
 
-    //     try {
-    //         EncodedBuffer encodedData;	/* encoded data */
-    //         __seq4 pdu;		/* coding container for attestation TBS value */
-    //         ossEncodingRules encRule;	/* default encoding rules */
+        try {
+            WaveAttestationTbs_PDU pdu;		/* coding container for attestation TBS value */
+            ossEncodingRules encRule;	/* default encoding rules */
 
-    //         where = "initial settings";
+            where = "initial settings";
 
-    //         ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-    //         ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
 
-    //         /*
-    //         * Get the encoding rule, which is set currently.
-    //         */
-    //         encRule = ctl.getEncodingRules();
+            /*
+            * Get the encoding rule, which is set currently.
+            */
+            encRule = ctl.getEncodingRules();
 
-    //         /*
-    //         * Set the data to the coding container.
-    //         */
-    //         pdu.set_data(att->get_tbs());
+            /*
+            * Set the data to the coding container.
+            */
+            pdu.set_data(att->get_tbs());
 
-    //         /*
-    //         * Print the input to the encoder.
-    //         */
-    //         printf("The input to the encoder...\n\n");
-    //         where = "printing";
-    //         pdu.print(ctl);
+            /*
+            * Print the input to the encoder.
+            */
+            printf("The input to the encoder...\n\n");
+            where = "printing";
+            pdu.print(ctl);
 
-    //         /*
-    //         * Encode the object.
-    //         */
-    //         printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-    //         where = "encoding";
-    //         pdu.encode(ctl, encodedData);
-    //         printf("\nPDU encoded successfully.\n");
+            /*
+            * Encode the object.
+            */
+            printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+            where = "encoding";
+            pdu.encode(ctl, encData);
+            printf("\nPDU encoded successfully.\n");
 
-    //         /*
-    //         * Printing the encoded PDU.
-    //         */
-    //         printf("\n%s-Encoded PDU...\n\n",
-    //             encRule == OSS_BER ? "BER": "PER");
-    //         where = "printing";
-    //         encodedData.print_hex(ctl);
+            /*
+            * Printing the encoded PDU.
+            */
+            printf("\n%s-Encoded PDU...\n\n",
+                encRule == OSS_BER ? "BER": "PER");
+            where = "printing";
+            encData.print_hex(ctl);
 
-    //     } catch (ASN1Exception &exc) {
-    //         /*
-    //         * An error occurred during decoding.
-    //         */
-    //         code = report_error(&ctl, where, exc);
-    //     }
-    //     } catch (ASN1Exception &exc) {
-    //     /*
-    //     * An error occurred during control object initialization.
-    //     */
-    //     code = report_error(NULL, where, exc);
-    //     } catch (...) {
-    //     /*
-    //     * An unexpected exception is caught.
-    //     */
-    //     printf("Unexpected exception caught.\n");
-    //     code = -1;
-    //     }
+        } catch (ASN1Exception &exc) {
+            /*
+            * An error occurred during decoding.
+            */
+            code = report_error(&ctl, where, exc);
+        }
+        } catch (ASN1Exception &exc) {
+        /*
+        * An error occurred during control object initialization.
+        */
+        code = report_error(NULL, where, exc);
+        } catch (...) {
+        /*
+        * An unexpected exception is caught.
+        */
+        printf("Unexpected exception caught.\n");
+        code = -1;
+        }
         if (code) {
             cerr << "code #4 failed\n";
             return -1;
@@ -969,10 +972,12 @@ int verify(string pemContent) {
 
         Ed25519OuterSignature::verifyingKey vKey = osig->get_verifyingKey();
         Ed25519OuterSignature::signature sig = osig->get_signature();
+        string s(sig.get_buffer(), sig.length());
+        string v(vKey.get_buffer(), vKey.length());
         /* verify the signature */
-        //TODO: fix this
-        if (ed25519_verify((const unsigned char *) (sig.get_buffer()), 
-                (const unsigned char *) "temp", 4, (const unsigned char *) (vKey.get_buffer()))) {
+        if (ed25519_verify((const unsigned char *) s.c_str(), 
+                (const unsigned char *) encData.get_data(), encData.get_length(), 
+                (const unsigned char *) v.c_str())) {
             cout << "valid outer signature\n";
         } else {
             cerr << "invalid outer signature\n";

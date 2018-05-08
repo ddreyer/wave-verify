@@ -8,7 +8,16 @@ BEGIN
   -- A set of policy statements about an Entity, potentially granting
   -- permissions or establishing facts
   WaveAttestation ::= SEQUENCE {
-    tbs SEQUENCE {
+    tbs WaveAttestationTbs,
+    -- The attestation is signed with an ephemeral signing key generated
+    -- for a single use (or another signature scheme suitable for single
+    -- use is permitted). The details of this signature are bound to
+    -- the real attestation key inside the body but we don't reveal the
+    -- attester at this layer
+    outerSignature INSTANCE OF TYPE-IDENTIFIER ({OuterSignatureSchemes})
+  }
+
+  WaveAttestationTbs ::= SEQUENCE {
       -- the subject of the attestation, who is receiving permissions or
       -- having a property attested to
       subject EntityHash,
@@ -26,14 +35,7 @@ BEGIN
       -- decryption (e.g prover vs verifier) the contents of that
       -- AttestationBody object may differ.
       body INSTANCE OF TYPE-IDENTIFIER ({AttestationBodySchemes})
-    },
-    -- The attestation is signed with an ephemeral signing key generated
-    -- for a single use (or another signature scheme suitable for single
-    -- use is permitted). The details of this signature are bound to
-    -- the real attestation key inside the body but we don't reveal the
-    -- attester at this layer
-    outerSignature INSTANCE OF TYPE-IDENTIFIER ({OuterSignatureSchemes})
-  }
+    }
 
   -- Irrespective of the algorithm used to encrypt the body, this
   -- is the object it contains
@@ -415,10 +417,12 @@ wr1-body-scheme-v1 OBJECT IDENTIFIER ::= { attestation-body-scheme 2 }
 -- to force implementations not to be too tied to a specific body scheme
 -- which would hinder future development of new body schemes
 psk-body-scheme OBJECT IDENTIFIER ::= { attestation-body-scheme 3 }
+attestation-tbs OBJECT IDENTIFIER ::= { attestation-body-scheme 4}
 AttestationBodySchemes TYPE-IDENTIFIER ::= {
  {AttestationBody IDENTIFIED BY unencrypted-body-scheme} |
  {WR1BodyCiphertext IDENTIFIED BY wr1-body-scheme-v1} |
- {PSKBodyCiphertext IDENTIFIED BY psk-body-scheme},
+ {PSKBodyCiphertext IDENTIFIED BY psk-body-scheme} |
+ {WaveAttestationTbs IDENTIFIED BY attestation-tbs},
  ...
 }
 
