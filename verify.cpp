@@ -757,7 +757,7 @@ int main() {
         }
 
         OssEncOID attestId = decryptedBody.get_attester().get_type_id();
-        WaveEntity *attester;
+        WaveEntity *attester = nullptr;
         // gofunc: EntityByHashLoc
         if (attestId == keccak_256_id) {
             HashKeccak_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashKeccak_256();
@@ -772,13 +772,15 @@ int main() {
             // TODO: attestLoc never used?
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
-                // hash this and compare to attesterHash
-                Keccak k(Keccak::Keccak256) ;
-                // it->get_der();
+                Keccak k(Keccak::Keccak256);
+                string entityHash = k(it->get_der());
                 cout << "att hash" << string_to_hex(attesterHash->get_buffer());
-                // if () {
-                //     attester = it->get_entity();
-                // }
+                cout << "\nentity hash" << entityHash;
+                if (strcmp(attesterHash->get_buffer(), entityHash.c_str())) {
+                    cout << "found matching entity for attester\n";
+                    attester = it->get_entity();
+                    break;
+                }
             }
         } else if (attestId == sha3_256_id) {
             HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
@@ -816,41 +818,41 @@ int main() {
             return -1;
         }
 
-        // if (attester == nullptr) {
-        //     cerr << "no attester\n";
-        //     return -1;
-        // }
+        if (attester == nullptr) {
+            cerr << "no attester\n";
+            return -1;
+        }
 
-        // // gofunc: VerifyCertify
-        // // gofunc: HasCapability
-        // // TODO: this is checked when we parsed entities, so redundant?
-        // EntityPublicKey::capabilityFlags caps = 
-        //     attester->get_tbs().get_verifyingKey().get_capabilityFlags();
-        // OssIndex capIndex = caps.first();
-        // bool hasCapability = false;
-        // while (capIndex != OSS_NOINDEX) {
-        //     int *capInt = caps.at(capIndex);
-        //     capIndex = caps.next(capIndex);
-        //     if (*capInt == CapCertification) {
-        //         hasCapability = true;
-        //         break;
-        //     }
-        // }
+        // gofunc: VerifyCertify
+        // gofunc: HasCapability
+        // TODO: this is checked when we parsed entities, so redundant?
+        EntityPublicKey::capabilityFlags caps = 
+            attester->get_tbs().get_verifyingKey().get_capabilityFlags();
+        OssIndex capIndex = caps.first();
+        bool hasCapability = false;
+        while (capIndex != OSS_NOINDEX) {
+            int *capInt = caps.at(capIndex);
+            capIndex = caps.next(capIndex);
+            if (*capInt == CapCertification) {
+                hasCapability = true;
+                break;
+            }
+        }
 
-        // if (!hasCapability) {
-        //     cerr << "this key cannot perform certifications\n";
-        //     return -1;
-        // }
+        if (!hasCapability) {
+            cerr << "this key cannot perform certifications\n";
+            return -1;
+        }
 
         // gofunc: Verify
         // TODO: figure out marshaling of binding.TBS
-        // Public_Ed25519 *attesterKey = 
-        //     attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
-        // if (!ed25519_verify((const unsigned char *) (binding->get_signature().get_buffer()), 
-        //     (const unsigned char *) "temp", 4, (const unsigned char *) (attesterKey->get_buffer()))) {
-        //     cerr << "outer signature binding invalid\n";
-        //     return -1;
-        // }
+        Public_Ed25519 *attesterKey = 
+            attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
+        if (!ed25519_verify((const unsigned char *) (binding->get_signature().get_buffer()), 
+            (const unsigned char *) "temp", 4, (const unsigned char *) (attesterKey->get_buffer()))) {
+            cerr << "outer signature binding invalid\n";
+            return -1;
+        }
         cout << "valid outer signature binding\n";
 
         // Now we know the binding is valid, check the key is the same
