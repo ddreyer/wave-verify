@@ -9,6 +9,7 @@
 #include "objects.h"
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
+#include "hash-library/keccak.h"
 
 const int CapCertification = 1;
 
@@ -140,7 +141,7 @@ string base64_decode(string const& encoded_string) {
 std::string string_to_hex(const std::string& input) {
     static const char* const lut = "0123456789ABCDEF";
     size_t len = input.length();
-    cout << "THIS IS LEN: " << len << "\n";
+    cout << "\nlength of hex: " << len << "\n";
 
     std::string output;
     output.reserve(2 * len);
@@ -535,7 +536,6 @@ int main() {
         }
         // gofunc: ParseAttestation
         // parse attestation
-        // TODO: figure out if attestation needs to be unmarshaled every time
         int code = 0;		/* return code */
         AttestationReference::content *derEncodedData = atst->get_content();
         WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
@@ -743,7 +743,6 @@ int main() {
                 }
                 decryptedBody = vbody->get_attestationVerifierBody();
             }
-            // TODO: no attestation key, decrypt in prover role
 
         } else {
             cerr << "unsupported body scheme\n";
@@ -774,13 +773,13 @@ int main() {
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
                 // hash this and compare to attesterHash
+                Keccak k(Keccak::Keccak256) ;
                 // it->get_der();
-                // attesterHash->get_buffer();
+                cout << "att hash" << string_to_hex(attesterHash->get_buffer());
                 // if () {
                 //     attester = it->get_entity();
                 // }
             }
-            // TODO: loop through entity secrets?
         } else if (attestId == sha3_256_id) {
             HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
             if (attesterHash == nullptr) {

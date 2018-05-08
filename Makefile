@@ -7,10 +7,12 @@ AES_SRCS=aes-gcm/aes.c aes-gcm/cipher.c aes-gcm/cipher_wrap.c aes-gcm/gcm.c aes-
 AESCFLAGS=-c -Wall
 ED_OBJECTS=$(ED_SRCS:.c=.o)
 ED_SRCS=$(wildcard ed25519/src/*.c)
+HASH_OBJECTS=$(HASH_SRCS:.cpp=.o)
+HASH_SRCS=hash-library/keccak.cpp
 
 all: verify
 
-verify: $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o
+verify: $(HASH_OBJECTS) $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o
 		g++ -o $@ $^ $(LIBS) $(OSSLIBS)
 		./verify
 
@@ -25,6 +27,9 @@ $(AES_OBJECTS): aes-gcm/%.o : aes-gcm/%.c
 
 $(ED_OBJECTS): ed25519/src/%.o: ed25519/src/%.c
 		gcc -c $< -o $@
+
+$(HASH_OBJECTS): hash-library/%.o: hash-library/%.cpp
+		$(CC) -c $< -o $@
 
 .PHONY: clean cleanest
 
