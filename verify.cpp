@@ -609,8 +609,6 @@ int main() {
             return -1;
         }
 
-        // TODO: skipping return value formation, subject
-
         // gofunc: DecryptBody
         AttestationVerifierBody decryptedBody;
         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
@@ -633,7 +631,15 @@ int main() {
             } else if (hashSchemeID == sha3_256_id) {
                 HashSha3_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashSha3_256();
             } else {
-                cerr << "unsupported subject hash scheme instance\n";
+                cerr << "subject hash is unsupported\n";
+                return -1;
+            }
+
+            // check subject location scheme
+            LocationURL *lsurl = 
+                att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+            if (lsurl == nullptr) {
+                cerr << "subject location is unsupported\n";
                 return -1;
             }
 
@@ -825,7 +831,6 @@ int main() {
 
         // gofunc: VerifyCertify
         // gofunc: HasCapability
-        // TODO: this is checked when we parsed entities, so redundant?
         EntityPublicKey::capabilityFlags caps = 
             attester->get_tbs().get_verifyingKey().get_capabilityFlags();
         OssIndex capIndex = caps.first();
