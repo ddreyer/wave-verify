@@ -12,7 +12,7 @@ HASH_SRCS=hash-library/keccak.cpp
 
 all: verify
 
-verify: $(HASH_OBJECTS) $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o
+verify: $(HASH_OBJECTS) $(ED_OBJECTS) $(AES_OBJECTS) objects.o verify.o main.o
 		g++ -o $@ $^ $(LIBS) $(OSSLIBS)
 		./verify
 
@@ -21,6 +21,9 @@ verify.o: verify.cpp
 
 objects.o: objects.cpp
 		$(CC) -I. $(CFLAGS) -DOSSPRINT -c $<
+
+main.o: main.cpp
+		$(CC) -I. $(CFLAGS) -c $<
 
 $(AES_OBJECTS): aes-gcm/%.o : aes-gcm/%.c
 		gcc -c -Wall -c $< -o $@ 

@@ -1,29 +1,8 @@
-#include <fstream>
-#include <streambuf>
-#include <iostream>
-#include <stdio.h>
-#include <algorithm>
-#include <string>
-#include <list>
-
-#include "objects.h"
-#include "aes-gcm/gcm.h"
-#include "ed25519/src/ed25519.h"
-#include "hash-library/keccak.h"
+#include "verify.h"
 
 const int CapCertification = 1;
 
 using namespace std;
-
-class EntityItem {
-private:
-    WaveEntity *entity;
-    string entityDer;
-public:
-    EntityItem(WaveEntity *entity, string entityDer);
-    WaveEntity * get_entity();
-    string get_der();
-};
 
 EntityItem::EntityItem(WaveEntity *ent, string entDer) {
     entity = ent;
@@ -37,15 +16,6 @@ WaveEntity * EntityItem::get_entity() {
 string EntityItem::get_der() {
     return entityDer;
 }
-
-class ASN1Exception {
-private:
-    int code;
-public:
-    ASN1Exception(int asn1_code);
-    ASN1Exception(const ASN1Exception & that);
-    int get_code() const;
-};
 
 ASN1Exception::ASN1Exception(int asn1_code) {
     code = asn1_code;
@@ -138,7 +108,7 @@ string base64_decode(string const& encoded_string) {
     return ret;
 }
 
-std::string string_to_hex(const std::string& input) {
+string string_to_hex(const std::string& input) {
     static const char* const lut = "0123456789ABCDEF";
     size_t len = input.length();
     cout << "\nlength of hex: " << len << "\n";
@@ -154,20 +124,8 @@ std::string string_to_hex(const std::string& input) {
     return output;
 }
 
-int main() {
-    string str("Reading in PEM file");
-    cout << str << "\n";
-
-    ifstream t("proof.pem");
-    string pemStr((istreambuf_iterator<char>(t)),
-                             istreambuf_iterator<char>());
-
-    // extract proof content from .pem file
-    pemStr.erase(0, pemStr.find("\n") + 1);
-    int idx = pemStr.find("-----END WAVE");
-    pemStr.erase(idx, pemStr.find("\n", idx));
-    pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
-    string derEncodedData(base64_decode(pemStr));
+int verify(string pemContent) {
+    string derEncodedData(base64_decode(pemContent));
 
     printf("Binary size: %lu\n", derEncodedData.length());
     if (derEncodedData.length() == 0) {
