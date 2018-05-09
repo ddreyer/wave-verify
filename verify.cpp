@@ -733,14 +733,18 @@ int verify(string pemContent) {
                 cerr << "attester hash not valid\n";
                 return -1;
             }
+            // convert attestation has to hex and then to lower case
+            string attesterHashStr(attesterHash->get_buffer(), attesterHash->length());
+            string attHashHex = string_to_hex(attesterHashStr);
+            transform(attHashHex.begin(), attHashHex.end(), attHashHex.begin(), ::tolower);
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
                 Keccak k(Keccak::Keccak256);
                 string entityHash = k(it->get_der());
-                cout << "att hash" << string_to_hex(attesterHash->get_buffer());
-                cout << "\nentity hash" << entityHash;
-                if (strcmp(attesterHash->get_buffer(), entityHash.c_str())) {
-                    cout << "found matching entity for attester\n";
+                cout << "\natt hash: " << attHashHex;
+                cout << "\nentity hash: " << entityHash;
+                if (strcmp(attHashHex.c_str(), entityHash.c_str()) == 0) {
+                    cout << "\nfound matching entity for attester\n";
                     attester = it->get_entity();
                     break;
                 }
@@ -899,7 +903,6 @@ int verify(string pemContent) {
         }
         // check signature
         // gofunc: VerifySignature
-        // TODO: figure out marshaling of attestation TBS
         where = "initialization";
         EncodedBuffer encData;	/* encoded data */
         try {
@@ -938,14 +941,6 @@ int verify(string pemContent) {
             where = "encoding";
             pdu.encode(ctl, encData);
             printf("\nPDU encoded successfully.\n");
-
-            /*
-            * Printing the encoded PDU.
-            */
-            printf("\n%s-Encoded PDU...\n\n",
-                encRule == OSS_BER ? "BER": "PER");
-            where = "printing";
-            encData.print_hex(ctl);
 
         } catch (ASN1Exception &exc) {
             /*
