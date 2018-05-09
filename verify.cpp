@@ -391,6 +391,7 @@ int verify(string pemContent) {
             }
             string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
             string ksStr(ks->get_buffer(), ks->length());
+            // TODO: checking signature currently fails
             // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
             //     (const unsigned char *) eData.get_data(), eData.get_length(), 
             //     (const unsigned char *) ksStr.c_str())) {
@@ -497,6 +498,7 @@ int verify(string pemContent) {
     // retrieve attestations
     WaveExplicitProof::attestations atsts = exp->get_attestations();
     cout << "attestations retrieved\n";
+    vector<WaveAttestation *> attestationList;
     OssIndex attIndex = atsts.first();
     while (attIndex != OSS_NOINDEX) {
         AttestationReference *atst = atsts.at(attIndex);
@@ -601,7 +603,7 @@ int verify(string pemContent) {
         if (att == nullptr) {
             return verifyError("DER is not a wave attestation");
         }
-
+        attestationList.push_back(att);
         // gofunc: DecryptBody
         AttestationVerifierBody decryptedBody;
         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
@@ -621,6 +623,7 @@ int verify(string pemContent) {
             OssEncOID hashSchemeID = att->get_tbs().get_subject().get_type_id();
             if (hashSchemeID == keccak_256_id) {
                 HashKeccak_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashKeccak_256();
+
             } else if (hashSchemeID == sha3_256_id) {
                 HashSha3_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashSha3_256();
             } else {
@@ -990,10 +993,9 @@ int verify(string pemContent) {
             return verifyError("invalid outer signature");
         }
         cout << "valid outer signature\n";
-
     }
 
-    cout << "Finished verifying proof\n";
+    cout << "Finished parsing attestations\n";
 
     //TODO revocation checks
     //todo check end to end and check all paths have same subject
@@ -1003,12 +1005,35 @@ int verify(string pemContent) {
     OssIndex pathIndex = paths.first();
     while (pathIndex != OSS_NOINDEX) {
         WaveExplicitProof::paths::component *p = paths.at(pathIndex);
+        pathIndex = paths.next(pathIndex);
         OssIndex pIndex = p->first();
         // len(path) == 0
         if (pIndex == OSS_NOINDEX) {
             return verifyError("path of length 0");
         }
-        pathIndex = paths.next(pathIndex);
+        // path[0]
+        int *path0 = p->at(pIndex);
+        WaveAttestation *currAtt;
+        try {
+            currAtt = attestationList.at(*path0); 
+        } catch (...) {
+            return verifyError("proof refers to non-included attestation");
+        }
+
+        // gofunc: Subject
+        OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
+        if (subId == keccak_256_id) {
+            HashKeccak_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
+            if (cursubj == nullptr) {
+                verifyError("problem with attestation subject");
+            }
+            if (cursubj->length() != 32) {
+                verifyError("");
+            }
+        } else if (subId == sha3_256_id) {
+            HashSha3_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashSha3_256();
+
+        }
     }
     return 0;
 }

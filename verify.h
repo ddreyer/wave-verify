@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <string>
 #include <list>
+#include <vector>
 #include "objects.h"
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
