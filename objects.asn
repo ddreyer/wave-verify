@@ -116,7 +116,13 @@ BEGIN
   }
 
   WaveEntity ::= SEQUENCE {
-    tbs SEQUENCE {
+    tbs WaveEntityTbs,
+    -- the algorithm is determined by the type of
+    -- verifyingKey
+    signature OCTET STRING
+  }
+
+  WaveEntityTbs ::= SEQUENCE {
       -- the canonical certification and attestation key. This is what is used
       -- to sign attestation outerSignatureBindings, and to sign this object
       verifyingKey EntityPublicKey,
@@ -131,11 +137,7 @@ BEGIN
       revocations SEQUENCE OF RevocationOption,
       -- extensions
       extensions SEQUENCE OF Extension
-    },
-    -- the algorithm is determined by the type of
-    -- verifyingKey
-    signature OCTET STRING
-  }
+    }
 
   WaveEntitySecret ::= SEQUENCE {
     entity WaveEntity,
@@ -398,11 +400,13 @@ attestation-id OBJECT IDENTIFIER ::= { wave-object 1 }
 entity-id OBJECT IDENTIFIER ::= { wave-object 2 }
 explicit-proof-id OBJECT IDENTIFIER ::= { wave-object 3 }
 entity-secret-id OBJECT IDENTIFIER ::= { wave-object 4 }
+entity-tbs OBJECT IDENTIFIER ::= { wave-object 5}
 WaveObjects TYPE-IDENTIFIER ::= {
   {WaveAttestation IDENTIFIED BY attestation-id} |
   {WaveEntity IDENTIFIED BY entity-id} |
   {WaveExplicitProof IDENTIFIED BY explicit-proof-id} |
-  {WaveEntitySecret IDENTIFIED BY entity-secret-id},
+  {WaveEntitySecret IDENTIFIED BY entity-secret-id} |
+  {WaveEntityTbs IDENTIFIED BY entity-tbs},
 ...
 }
 

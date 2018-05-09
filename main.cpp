@@ -25,5 +25,6 @@ int main() {
         cerr << "verifying " << proofFile << " failed\n";
         return -1;
     }
+    cout << "verifing " << proofFile << " succeeded\n";
     return 0;
 }

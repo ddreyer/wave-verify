@@ -109,9 +109,9 @@ string base64_decode(string const& encoded_string) {
 }
 
 string string_to_hex(const std::string& input) {
-    static const char* const lut = "0123456789ABCDEF";
+    static const char* const lut = "0123456789abcdef";
     size_t len = input.length();
-    cout << "\nlength of hex: " << len << "\n";
+    cout << "\nlength of input: " << len << "\n";
 
     std::string output;
     output.reserve(2 * len);
@@ -238,7 +238,7 @@ int verify(string pemContent) {
 
                 ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
                 ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS | PRINT_DECODER_INPUT | PRINT_HEX_WITH_ASCII);
+                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
 
                 /*
                  * Do decoding. Note that API is the same for any encoding method.
@@ -336,9 +336,71 @@ int verify(string pemContent) {
             }
 
             // gofunc: Verify
-            // TODO: figure out ent.TBS.Raw
-            // if (!ed25519_verify((const unsigned char *) (entity->get_signature().get_buffer()), 
-            //     (const unsigned char *) "temp", 4, (const unsigned char *) (ks->get_buffer()))) {
+            const char *where = "initialization";
+            EncodedBuffer eData;	/* encoded data */
+            try {
+            objects_Control ctl;	/* ASN.1/C++ control object */
+
+            try {
+                WaveEntityTbs_PDU pdu;		/* coding container for entity TBS value */
+                ossEncodingRules encRule;	/* default encoding rules */
+
+                where = "initial settings";
+
+                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+                /*
+                * Get the encoding rule, which is set currently.
+                */
+                encRule = ctl.getEncodingRules();
+
+                /*
+                * Set the data to the coding container.
+                */
+                pdu.set_data(entity->get_tbs());
+
+                /*
+                * Print the input to the encoder.
+                */
+                printf("The input to the encoder...\n\n");
+                where = "printing";
+                pdu.print(ctl);
+
+                /*
+                * Encode the object.
+                */
+                printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+                where = "encoding";
+                pdu.encode(ctl, eData);
+                printf("\nPDU encoded successfully.\n");
+            } catch (ASN1Exception &exc) {
+                /*
+                * An error occurred during decoding.
+                */
+                code = report_error(&ctl, where, exc);
+            }
+            } catch (ASN1Exception &exc) {
+            /*
+            * An error occurred during control object initialization.
+            */
+            code = report_error(NULL, where, exc);
+            } catch (...) {
+            /*
+            * An unexpected exception is caught.
+            */
+            printf("Unexpected exception caught.\n");
+            code = -1;
+            }
+            string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
+            string ksStr(ks->get_buffer(), ks->length());
+            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+            //     (const unsigned char *) eData.get_data(), eData.get_length(), 
+            //     (const unsigned char *) ksStr.c_str())) {
+            //     cerr << "\nsig: " << string_to_hex(entSig);
+            //     cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
+            //     string d(eData.get_data(), eData.get_length());
+            //     cerr << "\ndata: " << string_to_hex(d);
             //     cerr << "entity ed25519 signature invalid\n";
             //     return -1;
             // }
@@ -733,10 +795,9 @@ int verify(string pemContent) {
                 cerr << "attester hash not valid\n";
                 return -1;
             }
-            // convert attestation has to hex and then to lower case
+            // convert attestation has to hex
             string attesterHashStr(attesterHash->get_buffer(), attesterHash->length());
             string attHashHex = string_to_hex(attesterHashStr);
-            transform(attHashHex.begin(), attHashHex.end(), attHashHex.begin(), ::tolower);
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
                 Keccak k(Keccak::Keccak256);
@@ -970,14 +1031,13 @@ int verify(string pemContent) {
         string s(sig.get_buffer(), sig.length());
         string v(vKey.get_buffer(), vKey.length());
         /* verify the signature */
-        if (ed25519_verify((const unsigned char *) s.c_str(), 
+        if (!ed25519_verify((const unsigned char *) s.c_str(), 
                 (const unsigned char *) encData.get_data(), encData.get_length(), 
                 (const unsigned char *) v.c_str())) {
-            cout << "valid outer signature\n";
-        } else {
             cerr << "invalid outer signature\n";
             return -1;
         }
+        cout << "valid outer signature\n";
 
     }
 
