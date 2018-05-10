@@ -142,7 +142,7 @@ int verifyError(string errMessage) {
     exit(-1);
 }
     
-auto HashSchemeInstanceFor(WaveAttestation *nextAtt) {
+OssString * HashSchemeInstanceFor(WaveAttestation *nextAtt) {
     OssEncOID subId = nextAtt->get_tbs().get_subject().get_type_id();
     if (subId == keccak_256_id) {
         HashKeccak_256 *nextAttest = nextAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
@@ -167,17 +167,31 @@ auto HashSchemeInstanceFor(WaveAttestation *nextAtt) {
     }
 }
 
-int verify(string pemContent) {
-    string derEncodedData(base64_decode(pemContent));
-
-    printf("Binary size: %lu\n", derEncodedData.length());
-    if (derEncodedData.length() == 0) {
-    	verifyError("could not decode proof from DER format");
+LocationURL * LocationSchemeInstanceFor(WaveAttestation *att) {
+    LocationURL *lsurl = att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+    if (lsurl == nullptr) {
+        verifyError("subject location is unsupported");
     }
+    return lsurl;
+}
 
-    // unmarshal into WaveWireObject
+bool HasCapability(WaveEntity *entity) {
+    EntityPublicKey::capabilityFlags caps = 
+        entity->get_tbs().get_verifyingKey().get_capabilityFlags();
+    OssIndex capIndex = caps.first();
+    while (capIndex != OSS_NOINDEX) {
+        int *capInt = caps.at(capIndex);
+        capIndex = caps.next(capIndex);
+        if (*capInt == CapCertification) {
+            return true;
+        }
+    }
+    return false;
+}
+
+auto unmarshal(string derEncodedData, auto decodePtr, auto pdu) {
     int code = 0;		/* return code */
-    WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
+    decodePtr = NULL;	/* pointer to decoded data */
 
     /*
      * Handle ASN.1/C++ runtime errors with C++ exceptions.
@@ -189,7 +203,6 @@ int verify(string pemContent) {
 
 	try {
 	    EncodedBuffer encodedData;	/* encoded data */
-	    WaveWireObject_PDU pdu;	 /* coding container for a WWO value */ 
 	    int encRule;	/* default encoding rules */
 
 	    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
@@ -223,7 +236,7 @@ int verify(string pemContent) {
 	    /*
 	     * Read decoded data.
 	     */
-	    wwoPtr = pdu.get_data();
+	    decodePtr = pdu.get_data();
 	} catch (ASN1Exception &exc) {
 	    /*
 	     * An error occurred during decoding.
@@ -246,8 +259,79 @@ int verify(string pemContent) {
     }
 
     if (code) {
-        verifyError("code #1 failed to decode");
+        verifyError("failed to unmarshal");
     }
+    return decodePtr;
+}
+
+string marshal(auto body) {
+    const char *where = "initialization";
+    int code = 0;
+    EncodedBuffer eData;	/* encoded data */
+    try {
+    objects_Control ctl;	/* ASN.1/C++ control object */
+
+    try {
+        WaveEntityTbs_PDU pdu;		/* coding container for entity TBS value */
+        ossEncodingRules encRule;	/* default encoding rules */
+
+        where = "initial settings";
+
+        ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+        ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+
+        /*
+        * Get the encoding rule, which is set currently.
+        */
+        encRule = ctl.getEncodingRules();
+
+        /*
+        * Set the data to the coding container.
+        */
+        pdu.set_data(body);
+
+        /*
+        * Encode the object.
+        */
+        printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+        where = "encoding";
+        pdu.encode(ctl, eData);
+        printf("\nPDU encoded successfully.\n");
+    } catch (ASN1Exception &exc) {
+        /*
+        * An error occurred during decoding.
+        */
+        code = report_error(&ctl, where, exc);
+    }
+    } catch (ASN1Exception &exc) {
+    /*
+    * An error occurred during control object initialization.
+    */
+    code = report_error(NULL, where, exc);
+    } catch (...) {
+    /*
+    * An unexpected exception is caught.
+    */
+    printf("Unexpected exception caught.\n");
+    code = -1;
+    }
+    if (code) {
+        verifyError("failed to marshal");
+    }
+    return string(eData.get_data(), eData.get_length());
+}
+
+int verify(string pemContent) {
+    string derEncodedData(base64_decode(pemContent));
+
+    printf("Binary size: %lu\n", derEncodedData.length());
+    if (derEncodedData.length() == 0) {
+    	verifyError("could not decode proof from DER format");
+    }
+
+    WaveWireObject *wwoPtr = nullptr;
+    WaveWireObject_PDU pdu;
+    wwoPtr = unmarshal(derEncodedData, wwoPtr, pdu);	/* pointer to decoded data */
 
     WaveExplicitProof *exp = wwoPtr->get_value().get_WaveExplicitProof();
     if (exp == nullptr) {
@@ -266,69 +350,9 @@ int verify(string pemContent) {
         entIndex = ents.next(entIndex);
 
         // gofunc: ParseEntity
-        WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
-
-        try {
-            objects_Control ctl;	/* ASN.1/C++ control object */
-
-            try {
-                EncodedBuffer encodedData;	/* encoded data */
-                WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
-                int encRule;	/* default encoding rules */
-
-                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
-
-                /*
-                 * Do decoding. Note that API is the same for any encoding method.
-                 * Get encoding rules which were specified on the ASN.1 compiler
-                 * command line.
-                 */
-                encRule = ctl.getEncodingRules();
-
-                /*
-                 * Set the decoder's input.
-                 */
-                if (encRule == OSS_DER) {
-                    encodedData.set_buffer(ent->length(),
-                                           ent->get_buffer());
-                } else {
-                    cout << "can't find encoding rule\n";
-                }
-
-                /*
-                 * Decode the encoded PDU whose encoding is in "encodedData".
-                 * An exception will be thrown on any error.
-                 */
-                pdu.decode(ctl, encodedData);
-
-                /*
-                 * Read decoded data.
-                 */
-                wwoPtr = pdu.get_data();
-            } catch (ASN1Exception &exc) {
-                /*
-                 * An error occurred during decoding.
-                 */
-                code = report_error(&ctl, "decode", exc);
-            }
-        } catch (ASN1Exception &exc) {
-            /*
-             * An error occurred during control object initialization.
-             */
-            code = report_error(NULL, "initialization", exc);
-        } catch (...) {
-            /*
-             * An unexpected exception is caught.
-             */
-            printf("Unexpected exception caught.\n");
-            code = -1;
-        }
-
-        if (code) {
-            verifyError("failed to decode entity");
-        }
+        WaveWireObject *wwoPtr = nullptr;
+        WaveWireObject_PDU pdu;
+        wwoPtr = unmarshal(entStr, wwoPtr, pdu);
 
         WaveEntity *entity = wwoPtr->get_value().get_WaveEntity();
         if (entity == nullptr) {
@@ -353,89 +377,22 @@ int verify(string pemContent) {
             }
             // gofunc: VerifyCertify
             // gofunc: HasCapability
-            EntityPublicKey::capabilityFlags caps = 
-                entity->get_tbs().get_verifyingKey().get_capabilityFlags();
-            OssIndex capIndex = caps.first();
-            bool hasCapability = false;
-            while (capIndex != OSS_NOINDEX) {
-                int *capInt = caps.at(capIndex);
-                capIndex = caps.next(capIndex);
-                if (*capInt == CapCertification) {
-                    hasCapability = true;
-                    break;
-                }
-            }
-
-            if (!hasCapability) {
+            if (!HasCapability(entity)) {
                 verifyError("this key cannot perform certifications");
             }
 
             // gofunc: Verify
-            const char *where = "initialization";
-            EncodedBuffer eData;	/* encoded data */
-            try {
-            objects_Control ctl;	/* ASN.1/C++ control object */
+            string eData = marshal(entity->get_tbs());
 
-            try {
-                WaveEntityTbs_PDU pdu;		/* coding container for entity TBS value */
-                ossEncodingRules encRule;	/* default encoding rules */
-
-                where = "initial settings";
-
-                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
-
-                /*
-                * Get the encoding rule, which is set currently.
-                */
-                encRule = ctl.getEncodingRules();
-
-                /*
-                * Set the data to the coding container.
-                */
-                pdu.set_data(entity->get_tbs());
-
-                /*
-                * Print the input to the encoder.
-                */
-                printf("The input to the encoder...\n\n");
-                where = "printing";
-                pdu.print(ctl);
-
-                /*
-                * Encode the object.
-                */
-                printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-                where = "encoding";
-                pdu.encode(ctl, eData);
-                printf("\nPDU encoded successfully.\n");
-            } catch (ASN1Exception &exc) {
-                /*
-                * An error occurred during decoding.
-                */
-                code = report_error(&ctl, where, exc);
-            }
-            } catch (ASN1Exception &exc) {
-            /*
-            * An error occurred during control object initialization.
-            */
-            code = report_error(NULL, where, exc);
-            } catch (...) {
-            /*
-            * An unexpected exception is caught.
-            */
-            printf("Unexpected exception caught.\n");
-            code = -1;
-            }
             string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
             string ksStr(ks->get_buffer(), ks->length());
             // TODO: checking signature currently fails
             // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-            //     (const unsigned char *) eData.get_data(), eData.get_length(), 
+            //     (const unsigned char *) eData.c_str(), eData.length(), 
             //     (const unsigned char *) ksStr.c_str())) {
             //     cerr << "\nsig: " << string_to_hex(entSig);
             //     cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
-            //     string d(eData.get_data(), eData.get_length());
+            //     string d(eData.c_str(), eData.length());
             //     cerr << "\ndata: " << string_to_hex(d);
             //     verifyError("entity ed25519 signature invalid");
             // }
@@ -571,71 +528,10 @@ int verify(string pemContent) {
         }
         // gofunc: ParseAttestation
         // parse attestation
-        int code = 0;		/* return code */
         AttestationReference::content *derEncodedData = atst->get_content();
-        WaveWireObject *wwoPtr = NULL;	/* pointer to decoded data */
-
-        try {
-            objects_Control ctl;	/* ASN.1/C++ control object */
-
-            try {
-                EncodedBuffer encodedData;	/* encoded data */
-                WaveWireObject_PDU pdu;	 /* coding container for a WWO value */
-                int encRule;	/* default encoding rules */
-
-                ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-                ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
-
-                /*
-                 * Do decoding. Note that API is the same for any encoding method.
-                 * Get encoding rules which were specified on the ASN.1 compiler
-                 * command line.
-                 */
-                encRule = ctl.getEncodingRules();
-
-                /*
-                 * Set the decoder's input.
-                 */
-                if (encRule == OSS_DER) {
-                    encodedData.set_buffer(derEncodedData->length(),
-                                           (char *)derEncodedData->get_buffer());
-                } else {
-                    cout << "can't find encoding rule\n";
-                }
-
-                /*
-                 * Decode the encoded PDU whose encoding is in "encodedData".
-                 * An exception will be thrown on any error.
-                 */
-                pdu.decode(ctl, encodedData);
-
-                /*
-                 * Read decoded data.
-                 */
-                wwoPtr = pdu.get_data();
-            } catch (ASN1Exception &exc) {
-                /*
-                 * An error occurred during decoding.
-                 */
-                code = report_error(&ctl, "decode", exc);
-            }
-        } catch (ASN1Exception &exc) {
-            /*
-             * An error occurred during control object initialization.
-             */
-            code = report_error(NULL, "initialization", exc);
-        } catch (...) {
-            /*
-             * An unexpected exception is caught.
-             */
-            printf("Unexpected exception caught.\n");
-            code = -1;
-        }
-
-        if (code) {
-            verifyError("code #2 failed");
-        }
+        WaveWireObject *wwoPtr = nullptr;
+        WaveWireObject_PDU pdu;
+        wwoPtr = unmarshal(string(derEncodedData->get_buffer(), derEncodedData->length()), wwoPtr, pdu);
 
         WaveAttestation *att = wwoPtr->get_value().get_WaveAttestation();
         if (att == nullptr) {
@@ -658,22 +554,10 @@ int verify(string pemContent) {
             }
 
             // checking subject HI instance
-            OssEncOID hashSchemeID = att->get_tbs().get_subject().get_type_id();
-            if (hashSchemeID == keccak_256_id) {
-                HashKeccak_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashKeccak_256();
-
-            } else if (hashSchemeID == sha3_256_id) {
-                HashSha3_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashSha3_256();
-            } else {
-                verifyError("subject hash is unsupported");
-            }
-
+            HashSchemeInstanceFor(att);
+            
             // check subject location scheme
-            LocationURL *lsurl = 
-                att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
-            if (lsurl == nullptr) {
-                verifyError("subject location is unsupported");
-            }
+            LocationSchemeInstanceFor(att);
 
             if (vfk) {
                 cout << "decrypting attestation\n";
@@ -711,71 +595,11 @@ int verify(string pemContent) {
                 mbedtls_gcm_free(&ctx);
 
                 //unmarshal into WR1VerifierBody
-                code = 0;		/* return code */
-                WR1VerifierBody *vbody = NULL;	/* pointer to decoded data */
-
-                try {
-                objects_Control ctl;	/* ASN.1/C++ control object */
-
-                try {
-                    EncodedBuffer encodedData;	/* encoded data */
-                    WR1VerifierBody_PDU pdu;	 /* coding container for a WWO value */ 
-                    int encRule;	/* default encoding rules */
-
-                    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-                    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-                    ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS | PRINT_DECODER_INPUT | PRINT_HEX_WITH_ASCII);
-
-                    /*
-                    * Do decoding. Note that API is the same for any encoding method.
-                    * Get encoding rules which were specified on the ASN.1 compiler
-                    * command line.
-                    */
-                    encRule = ctl.getEncodingRules();
-
-                    /*
-                    * Set the decoder's input.
-                    */
-                    if (encRule == OSS_DER) {
-                        encodedData.set_buffer(bodyLen-16, (char *) verifierBodyDER);
-                    } else {
-                        cout << "can't find encoding rule\n";
-                    }
-
-                    /*
-                    * Decode the encoded PDU whose encoding is in "encodedData".
-                    * An exception will be thrown on any error.
-                    */
-                    pdu.decode(ctl, encodedData);
-
-                    /*
-                    * Read decoded data.
-                    */
-                    vbody = pdu.get_data();
-                } catch (ASN1Exception &exc) {
-                    /*
-                    * An error occurred during decoding.
-                    */
-                    code = report_error(&ctl, "decode", exc);
-                }
-                } catch (ASN1Exception &exc) {
-                /*
-                * An error occurred during control object initialization.
-                */
-                code = report_error(NULL, "initialization", exc);
-                } catch (...) {
-                /*
-                * An unexpected exception is caught.
-                */
-
-
-                printf("Unexpected exception caught.\n");
-                code = -1;
-                }
-
-                if (code) {
-                    verifyError("code #3 failed");
-                }
+                char *vBodyPtr = (char *) verifierBodyDER;
+                WR1VerifierBody *vbody = nullptr;
+                WR1VerifierBody_PDU pdu;
+                vbody = unmarshal(string(vBodyPtr, bodyLen-16), vbody, pdu);
+        
                 decryptedBody = vbody->get_attestationVerifierBody();
             }
         } else {
@@ -799,7 +623,7 @@ int verify(string pemContent) {
             if (attesterHash->length() != 32) {
                 verifyError("attester hash not valid");
             }
-            // convert attestation has to hex
+            // convert attestation hash to hex
             string attesterHashStr(attesterHash->get_buffer(), attesterHash->length());
             string attHashHex = string_to_hex(attesterHashStr);
             // loop through entities
@@ -851,25 +675,13 @@ int verify(string pemContent) {
 
         // gofunc: VerifyCertify
         // gofunc: HasCapability
-        EntityPublicKey::capabilityFlags caps = 
-            attester->get_tbs().get_verifyingKey().get_capabilityFlags();
-        OssIndex capIndex = caps.first();
-        bool hasCapability = false;
-        while (capIndex != OSS_NOINDEX) {
-            int *capInt = caps.at(capIndex);
-            capIndex = caps.next(capIndex);
-            if (*capInt == CapCertification) {
-                hasCapability = true;
-                break;
-            }
-        }
-
-        if (!hasCapability) {
+        if (!HasCapability(attester)) {
             verifyError("this key cannot perform certifications");
         }
 
         // gofunc: Verify
         const char *where = "initialization";
+        int code = 0;
         EncodedBuffer encodedData;	/* encoded data */
         try {
         objects_Control ctl;	/* ASN.1/C++ control object */
@@ -1064,7 +876,7 @@ int verify(string pemContent) {
         // gofunc: Subject
         OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
         // gofunc: HashSchemeInstanceFor
-        auto cursubj = HashSchemeInstanceFor(currAtt);
+        OssString *cursubj = HashSchemeInstanceFor(currAtt);
 
         // gofunc: LocationSchemeInstanceFor
         LocationURL *cursubloc = 
@@ -1095,7 +907,7 @@ int verify(string pemContent) {
             AttestationItem nextAttItem = attestationList.at(*pathNum);
             WaveAttestation *nextAtt = currAttItem.get_att();
             // gofunc: HashSchemeInstanceFor
-            auto nextAttest = HashSchemeInstanceFor(nextAtt);
+            OssString *nextAttest = HashSchemeInstanceFor(nextAtt);
 
             // gofunc: LocationSchemeInstanceFor
             LocationURL *nextAttLoc = 
