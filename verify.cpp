@@ -139,7 +139,32 @@ string string_to_hex(const std::string& input) {
 
 int verifyError(string errMessage) {
     cerr << errMessage << "\n";
-    return -1;
+    exit(-1);
+}
+    
+auto HashSchemeInstanceFor(WaveAttestation *nextAtt) {
+    OssEncOID subId = nextAtt->get_tbs().get_subject().get_type_id();
+    if (subId == keccak_256_id) {
+        HashKeccak_256 *nextAttest = nextAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
+        if (nextAttest == nullptr) {
+            verifyError("problem with next attestation subject");
+        }
+        if (nextAttest->length() != 32) {
+            verifyError("problem with next attestation subject");
+        }
+        return nextAttest;
+    } else if (subId == sha3_256_id) {
+        HashSha3_256 *nextAttest = nextAtt->get_tbs().get_subject().get_value().get_HashSha3_256();
+        if (nextAttest == nullptr) {
+            verifyError("problem with next attestation subject");
+        }
+        if (nextAttest->length() != 32) {
+            verifyError("problem with next attestation subject");
+        }
+        return nextAttest;
+    } else {
+        verifyError("problem with next attestation subject");
+    }
 }
 
 int verify(string pemContent) {
@@ -147,7 +172,7 @@ int verify(string pemContent) {
 
     printf("Binary size: %lu\n", derEncodedData.length());
     if (derEncodedData.length() == 0) {
-    	return verifyError("could not decode proof from DER format");
+    	verifyError("could not decode proof from DER format");
     }
 
     // unmarshal into WaveWireObject
@@ -342,7 +367,7 @@ int verify(string pemContent) {
             }
 
             if (!hasCapability) {
-                return verifyError("this key cannot perform certifications");
+                verifyError("this key cannot perform certifications");
             }
 
             // gofunc: Verify
@@ -412,44 +437,44 @@ int verify(string pemContent) {
             //     cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
             //     string d(eData.get_data(), eData.get_length());
             //     cerr << "\ndata: " << string_to_hex(d);
-            //     return verifyError("entity ed25519 signature invalid");
+            //     verifyError("entity ed25519 signature invalid");
             // }
             cout << "valid entity signature\n";
         } else if (entKeyId == curve25519_id) {
             Public_Curve25519 *ks = entKey.get_value().get_Public_Curve25519();
             if (ks == nullptr) {
-                return verifyError("entity key is null");
+                verifyError("entity key is null");
             }
             if (ks->length() != 32) {
-                return verifyError("key length is incorrect");
+                verifyError("key length is incorrect");
             }
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         } else if (entKeyId == ibe_bn256_params_id) {
             Params_BN256_IBE *ks = entKey.get_value().get_Params_BN256_IBE();
             if (ks == nullptr) {
-                return verifyError("entity key is null");
+                verifyError("entity key is null");
             }
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         } else if (entKeyId == ibe_bn256_public_id) {
             Public_BN256_IBE *ks = entKey.get_value().get_Public_BN256_IBE();
             if (ks == nullptr) {
-                return verifyError("entity key is null");
+                verifyError("entity key is null");
             }
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         } else if (entKeyId == oaque_bn256_s20_params_id) {
             Params_BN256_OAQUE *ks = entKey.get_value().get_Params_BN256_OAQUE();
             if (ks == nullptr) {
-                return verifyError("entity key is null");
+                verifyError("entity key is null");
             }
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
             Public_OAQUE *ks = entKey.get_value().get_Public_OAQUE();
             if (ks == nullptr) {
-                return verifyError("entity key is null");
+                verifyError("entity key is null");
             }
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         } else {
-            return verifyError("entity uses unsupported key scheme");
+            verifyError("entity uses unsupported key scheme");
         }
 
         // Entity appears ok, let's unpack it further
@@ -467,41 +492,41 @@ int verify(string pemContent) {
             if (lkeyId == ed25519_id) {
                 Public_Ed25519 *ks = lkey.get_value().get_Public_Ed25519();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
                 if (ks->length() != 32) {
-                    return verifyError("key length is incorrect");
+                    verifyError("key length is incorrect");
                 }
             } else if (lkeyId == curve25519_id) {
                 Public_Curve25519 *ks = lkey.get_value().get_Public_Curve25519();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
                 if (ks->length() != 32) {
-                    return verifyError("key length is incorrect");
+                    verifyError("key length is incorrect");
                 }
             } else if (lkeyId == ibe_bn256_params_id) {
                 Params_BN256_IBE *ks = lkey.get_value().get_Params_BN256_IBE();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
             } else if (lkeyId == ibe_bn256_public_id) {
                 Public_BN256_IBE *ks = lkey.get_value().get_Public_BN256_IBE();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
             } else if (lkeyId == oaque_bn256_s20_params_id) {
                 Params_BN256_OAQUE *ks = lkey.get_value().get_Params_BN256_OAQUE();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
             } else if (lkeyId == oaque_bn256_s20_attributeset_id) {
                 Public_OAQUE *ks = lkey.get_value().get_Public_OAQUE();
                 if (ks == nullptr) {
-                    return verifyError("tbs key is null");
+                    verifyError("tbs key is null");
                 }
             } else {
-                return verifyError("tbs key uses unsupported key scheme");
+                verifyError("tbs key uses unsupported key scheme");
             }
         }
         EntityItem e(entity, entStr);
@@ -609,12 +634,12 @@ int verify(string pemContent) {
         }
 
         if (code) {
-            return verifyError("code #2 failed");
+            verifyError("code #2 failed");
         }
 
         WaveAttestation *att = wwoPtr->get_value().get_WaveAttestation();
         if (att == nullptr) {
-            return verifyError("DER is not a wave attestation");
+            verifyError("DER is not a wave attestation");
         }
 
         // gofunc: DecryptBody
@@ -629,7 +654,7 @@ int verify(string pemContent) {
                     .get_value().get_WR1BodyCiphertext();
             cout << "got wr1 body\n";
             if (wr1body == nullptr) {
-                return verifyError("getting body ciphertext failed");
+                verifyError("getting body ciphertext failed");
             }
 
             // checking subject HI instance
@@ -640,14 +665,14 @@ int verify(string pemContent) {
             } else if (hashSchemeID == sha3_256_id) {
                 HashSha3_256 *subjectHI = att->get_tbs().get_subject().get_value().get_HashSha3_256();
             } else {
-                return verifyError("subject hash is unsupported");
+                verifyError("subject hash is unsupported");
             }
 
             // check subject location scheme
             LocationURL *lsurl = 
                 att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
             if (lsurl == nullptr) {
-                return verifyError("subject location is unsupported");
+                verifyError("subject location is unsupported");
             }
 
             if (vfk) {
@@ -658,7 +683,7 @@ int verify(string pemContent) {
                 ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
                     (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
                 if (ret) {
-                    return verifyError("aes set key failed");
+                    verifyError("aes set key failed");
                 }
         
                 WR1BodyCiphertext::verifierBodyCiphertext vbodyCipher = wr1body->get_verifierBodyCiphertext();
@@ -676,7 +701,7 @@ int verify(string pemContent) {
                 ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
                     verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
                 if (ret) {
-                    return verifyError("aes decrypt failed");
+                    verifyError("aes decrypt failed");
                 } else {
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
@@ -749,18 +774,18 @@ int verify(string pemContent) {
                 }
 
                 if (code) {
-                    return verifyError("code #3 failed");
+                    verifyError("code #3 failed");
                 }
                 decryptedBody = vbody->get_attestationVerifierBody();
             }
         } else {
-            return verifyError("unsupported body scheme");
+            verifyError("unsupported body scheme");
         }
 
         LocationURL *attesterLoc = 
             decryptedBody.get_attesterLocation().get_value().get_LocationURL();
         if (attesterLoc == nullptr) {
-            return verifyError("could not get attester loc");
+            verifyError("could not get attester loc");
         }
 
         OssEncOID attestId = decryptedBody.get_attester().get_type_id();
@@ -769,10 +794,10 @@ int verify(string pemContent) {
         if (attestId == keccak_256_id) {
             HashKeccak_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashKeccak_256();
             if (attesterHash == nullptr) {
-                return verifyError("could not get attester hash");
+                verifyError("could not get attester hash");
             }
             if (attesterHash->length() != 32) {
-                return verifyError("attester hash not valid");
+                verifyError("attester hash not valid");
             }
             // convert attestation has to hex
             string attesterHashStr(attesterHash->get_buffer(), attesterHash->length());
@@ -792,36 +817,36 @@ int verify(string pemContent) {
         } else if (attestId == sha3_256_id) {
             HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
             if (attesterHash == nullptr) {
-                return verifyError("could not get attester hash");
+                verifyError("could not get attester hash");
             }
             if (attesterHash->length() != 32) {
-                return verifyError("attester hash not valid");
+                verifyError("attester hash not valid");
             }
             //TODO: support non-keccak schemes
         } else {
-            return verifyError("unsupported attester hash scheme id");
+            verifyError("unsupported attester hash scheme id");
         }
 
         SignedOuterKey *_ = decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
         if (_ == nullptr) {
-            return verifyError("outer signature binding not supported");
+            verifyError("outer signature binding not supported");
         }
         // gofunc: VerifyBinding
         // At this time we only know how to extract the key from an ed25519 outer signature
         Ed25519OuterSignature *osig = att->get_outerSignature().get_value().get_Ed25519OuterSignature();
         if (osig == nullptr) {
-            return verifyError("unknown outer signature type/signature scheme not supported");
+            verifyError("unknown outer signature type/signature scheme not supported");
         }
 
         SignedOuterKey *binding = 
             decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
         if (binding == nullptr) {
-            return verifyError("this is not really a signed outer key");
+            verifyError("this is not really a signed outer key");
             return -1;
         }
 
         if (attester == nullptr) {
-            return verifyError("no attester");
+            verifyError("no attester");
         }
 
         // gofunc: VerifyCertify
@@ -840,7 +865,7 @@ int verify(string pemContent) {
         }
 
         if (!hasCapability) {
-            return verifyError("this key cannot perform certifications");
+            verifyError("this key cannot perform certifications");
         }
 
         // gofunc: Verify
@@ -919,17 +944,17 @@ int verify(string pemContent) {
             (const unsigned char *) attKey.c_str())) {
             cerr << "signature: " << string_to_hex(bindingSig);
             cerr << "\nkey: " << string_to_hex(attKey) << "\n";
-            return verifyError("outer signature binding invalid");
+            verifyError("outer signature binding invalid");
         }
         cout << "valid outer signature binding\n";
 
         // Now we know the binding is valid, check the key is the same
         if (binding->get_tbs().get_outerSignatureScheme() != ephemeral_ed25519) {
-            return verifyError("outer signature scheme invalid");
+            verifyError("outer signature scheme invalid");
         }
 
         if (binding->get_tbs().get_verifyingKey() != osig->get_verifyingKey()) {
-            return verifyError("bound key does not match");
+            verifyError("bound key does not match");
         }
         // check signature
         // gofunc: VerifySignature
@@ -991,7 +1016,7 @@ int verify(string pemContent) {
         code = -1;
         }
         if (code) {
-            return verifyError("code #4 failed");
+            verifyError("code #4 failed");
         }
 
         Ed25519OuterSignature::verifyingKey vKey = osig->get_verifyingKey();
@@ -1002,7 +1027,7 @@ int verify(string pemContent) {
         if (!ed25519_verify((const unsigned char *) s.c_str(), 
                 (const unsigned char *) encData.get_data(), encData.get_length(), 
                 (const unsigned char *) v.c_str())) {
-            return verifyError("invalid outer signature");
+            verifyError("invalid outer signature");
         }
         cout << "valid outer signature\n";
         AttestationItem aItem(att, decryptedBody);
@@ -1023,7 +1048,7 @@ int verify(string pemContent) {
         OssIndex pIndex = p->first();
         // len(path) == 0
         if (pIndex == OSS_NOINDEX) {
-            return verifyError("path of length 0");
+            verifyError("path of length 0");
         }
         // path[0]
         int *pathNum = p->at(pIndex);
@@ -1031,7 +1056,7 @@ int verify(string pemContent) {
         try {
             attestationList.at(*pathNum); 
         } catch (...) {
-            return verifyError("proof refers to non-included attestation");
+            verifyError("proof refers to non-included attestation");
         }
 
         AttestationItem currAttItem = attestationList.at(*pathNum);
@@ -1039,31 +1064,13 @@ int verify(string pemContent) {
         // gofunc: Subject
         OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
         // gofunc: HashSchemeInstanceFor
-        if (subId == keccak_256_id) {
-            HashKeccak_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
-            if (cursubj == nullptr) {
-                return verifyError("problem with attestation subject");
-            }
-            if (cursubj->length() != 32) {
-                return verifyError("problem with attestation subject");
-            }
-        } else if (subId == sha3_256_id) {
-            HashSha3_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashSha3_256();
-            if (cursubj == nullptr) {
-                return verifyError("problem with attestation subject");
-            }
-            if (cursubj->length() != 32) {
-                return verifyError("problem with attestation subject");
-            }
-        } else {
-            return verifyError("problem with attestation subject");
-        }
+        auto cursubj = HashSchemeInstanceFor(currAtt);
 
         // gofunc: LocationSchemeInstanceFor
         LocationURL *cursubloc = 
             currAtt->get_tbs().get_subjectLocation().get_value().get_LocationURL();
         if (cursubloc == nullptr) {
-            return verifyError("problem with attestation location");
+            verifyError("problem with attestation location");
         }
 
         // gofunc: PolicySchemeInstanceFor
@@ -1073,7 +1080,7 @@ int verify(string pemContent) {
         } else if (currBody.get_policy().get_type_id() == resource_tree) {
             currBody.get_policy().get_value().get_RTreePolicy();
         } else {
-            return verifyError("unsupported policy scheme");
+            verifyError("unsupported policy scheme");
         }
 
         while (pIndex != OSS_NOINDEX) {
@@ -1082,39 +1089,22 @@ int verify(string pemContent) {
             try {
                 attestationList.at(*pathNum); 
             } catch (...) {
-                return verifyError("proof refers to non-included attestation");
+                verifyError("proof refers to non-included attestation");
             }
 
             AttestationItem nextAttItem = attestationList.at(*pathNum);
-            WaveAttestation *nextAttest = currAttItem.get_att();
-            OssEncOID subId = nextAttest->get_tbs().get_subject().get_type_id();
+            WaveAttestation *nextAtt = currAttItem.get_att();
             // gofunc: HashSchemeInstanceFor
-            if (subId == keccak_256_id) {
-                HashKeccak_256 *cursubj = nextAttest->get_tbs().get_subject().get_value().get_HashKeccak_256();
-                if (cursubj == nullptr) {
-                    return verifyError("problem with next attestation subject");
-                }
-                if (cursubj->length() != 32) {
-                    return verifyError("problem with next attestation subject");
-                }
-            } else if (subId == sha3_256_id) {
-                HashSha3_256 *cursubj = nextAttest->get_tbs().get_subject().get_value().get_HashSha3_256();
-                if (cursubj == nullptr) {
-                    return verifyError("problem with next attestation subject");
-                }
-                if (cursubj->length() != 32) {
-                    return verifyError("problem with next attestation subject");
-                }
-            } else {
-                return verifyError("problem with next attestation subject");
-            }
+            auto nextAttest = HashSchemeInstanceFor(nextAtt);
 
             // gofunc: LocationSchemeInstanceFor
             LocationURL *nextAttLoc = 
-                nextAttest->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+                nextAtt->get_tbs().get_subjectLocation().get_value().get_LocationURL();
             if (nextAttLoc == nullptr) {
-                return verifyError("problem with next attestation location");
+                verifyError("problem with next attestation location");
             }
+
+
         }
     }
     return 0;
