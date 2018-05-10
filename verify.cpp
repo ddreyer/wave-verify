@@ -142,28 +142,53 @@ int verifyError(string errMessage) {
     exit(-1);
 }
     
-OssString * HashSchemeInstanceFor(WaveAttestation *nextAtt) {
-    OssEncOID subId = nextAtt->get_tbs().get_subject().get_type_id();
+OssString * HashSchemeInstanceFor(WaveAttestation *att) {
+    OssEncOID subId = att->get_tbs().get_subject().get_type_id();
     if (subId == keccak_256_id) {
-        HashKeccak_256 *nextAttest = nextAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
-        if (nextAttest == nullptr) {
-            verifyError("problem with next attestation subject");
+        HashKeccak_256 *attest = att->get_tbs().get_subject().get_value().get_HashKeccak_256();
+        if (attest == nullptr) {
+            verifyError("problem with hash");
         }
-        if (nextAttest->length() != 32) {
-            verifyError("problem with next attestation subject");
+        if (attest->length() != 32) {
+            verifyError("problem with hash");
         }
-        return nextAttest;
+        return attest;
     } else if (subId == sha3_256_id) {
-        HashSha3_256 *nextAttest = nextAtt->get_tbs().get_subject().get_value().get_HashSha3_256();
-        if (nextAttest == nullptr) {
-            verifyError("problem with next attestation subject");
+        HashSha3_256 *attest = att->get_tbs().get_subject().get_value().get_HashSha3_256();
+        if (attest == nullptr) {
+            verifyError("problem with hash");
         }
-        if (nextAttest->length() != 32) {
-            verifyError("problem with next attestation subject");
+        if (attest->length() != 32) {
+            verifyError("problem with hash");
         }
-        return nextAttest;
+        return attest;
     } else {
-        verifyError("problem with next attestation subject");
+        verifyError("problem with hash");
+    }
+}
+
+OssString * HashSchemeInstanceFor(RTreePolicy *policy) {
+    OssEncOID id = policy->get_RTreePolicy_namespace().get_type_id();
+    if (id == keccak_256_id) {
+        HashKeccak_256 *hash = policy->get_RTreePolicy_namespace().get_value().get_HashKeccak_256();
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->length() != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else if (id == sha3_256_id) {
+        HashSha3_256 *hash = policy->get_RTreePolicy_namespace().get_value().get_HashSha3_256();
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->length() != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else {
+        verifyError("problem with hash");
     }
 }
 
@@ -761,10 +786,15 @@ int verify(string pemContent) {
 
         // gofunc: PolicySchemeInstanceFor
         AttestationVerifierBody currBody = currAttItem.get_body();
+        RTreePolicy *policy;
         if (currBody.get_policy().get_type_id() == trust_level) {
-            currBody.get_policy().get_value().get_TrustLevel();
+            TrustLevel *tp = currBody.get_policy().get_value().get_TrustLevel();
+            verifyError("not supporting trust level policy right now");
         } else if (currBody.get_policy().get_type_id() == resource_tree) {
-            currBody.get_policy().get_value().get_RTreePolicy();
+            policy = currBody.get_policy().get_value().get_RTreePolicy();
+            if (policy == nullptr) {
+                verifyError("unexpected policy error");
+            }
         } else {
             verifyError("unsupported policy scheme");
         }
@@ -786,7 +816,32 @@ int verify(string pemContent) {
             // gofunc: LocationSchemeInstanceFor
             LocationURL *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
 
+            if (memcmp(cursubj->get_buffer(), nextAttest->get_buffer(), cursubj->length())) {
+                verifyError("path has broken links");
+            }
 
+            // gofunc: PolicySchemeInstanceFor
+            AttestationVerifierBody nextBody = nextAttItem.get_body();
+            RTreePolicy *nextPolicy;
+            if (nextBody.get_policy().get_type_id() == trust_level) {
+                TrustLevel *tp = nextBody.get_policy().get_value().get_TrustLevel();
+                verifyError("not supporting trust level policy right now");
+            } else if (nextBody.get_policy().get_type_id() == resource_tree) {
+                nextPolicy = nextBody.get_policy().get_value().get_RTreePolicy();
+                if (nextPolicy == nullptr) {
+                    verifyError("unexpected policy error");
+                }
+            } else {
+                verifyError("unsupported policy scheme");
+            }
+
+            // gofunc: Intersect
+            OssString *rhs_ns = HashSchemeInstanceFor(policy);
+            OssString *lhs_ns = HashSchemeInstanceFor(policy);
+            // not doing multihash
+            if (memcmp(rhs_ns->get_buffer(), lhs_ns->get_buffer(), rhs_ns->length())) {
+                verifyError("different authority domain");
+            }
         }
     }
     return 0;
