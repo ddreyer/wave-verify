@@ -24,6 +24,16 @@ public:
     std::string get_der();
 };
 
+class AttestationItem {
+private:
+    WaveAttestation *attestation;
+    AttestationVerifierBody decryptedBody;
+public:
+    AttestationItem(WaveAttestation *att, AttestationVerifierBody dBody);
+    WaveAttestation * get_att();
+    AttestationVerifierBody get_body();
+};
+
 class ASN1Exception {
 private:
     int code;

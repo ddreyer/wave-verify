@@ -17,6 +17,19 @@ string EntityItem::get_der() {
     return entityDer;
 }
 
+AttestationItem::AttestationItem(WaveAttestation *att, AttestationVerifierBody dBody) {
+    attestation = att;
+    decryptedBody = dBody;
+}
+
+WaveAttestation * AttestationItem::get_att() {
+    return attestation;
+}
+    
+AttestationVerifierBody AttestationItem::get_body() {
+    return decryptedBody;
+}
+
 ASN1Exception::ASN1Exception(int asn1_code) {
     code = asn1_code;
 }
@@ -498,7 +511,7 @@ int verify(string pemContent) {
     // retrieve attestations
     WaveExplicitProof::attestations atsts = exp->get_attestations();
     cout << "attestations retrieved\n";
-    vector<WaveAttestation *> attestationList;
+    vector<AttestationItem> attestationList;
     OssIndex attIndex = atsts.first();
     while (attIndex != OSS_NOINDEX) {
         AttestationReference *atst = atsts.at(attIndex);
@@ -603,7 +616,7 @@ int verify(string pemContent) {
         if (att == nullptr) {
             return verifyError("DER is not a wave attestation");
         }
-        attestationList.push_back(att);
+
         // gofunc: DecryptBody
         AttestationVerifierBody decryptedBody;
         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
@@ -740,7 +753,6 @@ int verify(string pemContent) {
                 }
                 decryptedBody = vbody->get_attestationVerifierBody();
             }
-
         } else {
             return verifyError("unsupported body scheme");
         }
@@ -993,6 +1005,8 @@ int verify(string pemContent) {
             return verifyError("invalid outer signature");
         }
         cout << "valid outer signature\n";
+        AttestationItem aItem(att, decryptedBody);
+        attestationList.push_back(aItem);
     }
 
     cout << "Finished parsing attestations\n";
@@ -1012,27 +1026,95 @@ int verify(string pemContent) {
             return verifyError("path of length 0");
         }
         // path[0]
-        int *path0 = p->at(pIndex);
-        WaveAttestation *currAtt;
+        int *pathNum = p->at(pIndex);
+        pIndex = p->next(pIndex);
         try {
-            currAtt = attestationList.at(*path0); 
+            attestationList.at(*pathNum); 
         } catch (...) {
             return verifyError("proof refers to non-included attestation");
         }
 
+        AttestationItem currAttItem = attestationList.at(*pathNum);
+        WaveAttestation *currAtt = currAttItem.get_att();
         // gofunc: Subject
         OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
+        // gofunc: HashSchemeInstanceFor
         if (subId == keccak_256_id) {
             HashKeccak_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashKeccak_256();
             if (cursubj == nullptr) {
-                verifyError("problem with attestation subject");
+                return verifyError("problem with attestation subject");
             }
             if (cursubj->length() != 32) {
-                verifyError("");
+                return verifyError("problem with attestation subject");
             }
         } else if (subId == sha3_256_id) {
             HashSha3_256 *cursubj = currAtt->get_tbs().get_subject().get_value().get_HashSha3_256();
+            if (cursubj == nullptr) {
+                return verifyError("problem with attestation subject");
+            }
+            if (cursubj->length() != 32) {
+                return verifyError("problem with attestation subject");
+            }
+        } else {
+            return verifyError("problem with attestation subject");
+        }
 
+        // gofunc: LocationSchemeInstanceFor
+        LocationURL *cursubloc = 
+            currAtt->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+        if (cursubloc == nullptr) {
+            return verifyError("problem with attestation location");
+        }
+
+        // gofunc: PolicySchemeInstanceFor
+        AttestationVerifierBody currBody = currAttItem.get_body();
+        if (currBody.get_policy().get_type_id() == trust_level) {
+            currBody.get_policy().get_value().get_TrustLevel();
+        } else if (currBody.get_policy().get_type_id() == resource_tree) {
+            currBody.get_policy().get_value().get_RTreePolicy();
+        } else {
+            return verifyError("unsupported policy scheme");
+        }
+
+        while (pIndex != OSS_NOINDEX) {
+            pathNum = p->at(pIndex);
+            pIndex = p->next(pIndex);
+            try {
+                attestationList.at(*pathNum); 
+            } catch (...) {
+                return verifyError("proof refers to non-included attestation");
+            }
+
+            AttestationItem nextAttItem = attestationList.at(*pathNum);
+            WaveAttestation *nextAttest = currAttItem.get_att();
+            OssEncOID subId = nextAttest->get_tbs().get_subject().get_type_id();
+            // gofunc: HashSchemeInstanceFor
+            if (subId == keccak_256_id) {
+                HashKeccak_256 *cursubj = nextAttest->get_tbs().get_subject().get_value().get_HashKeccak_256();
+                if (cursubj == nullptr) {
+                    return verifyError("problem with next attestation subject");
+                }
+                if (cursubj->length() != 32) {
+                    return verifyError("problem with next attestation subject");
+                }
+            } else if (subId == sha3_256_id) {
+                HashSha3_256 *cursubj = nextAttest->get_tbs().get_subject().get_value().get_HashSha3_256();
+                if (cursubj == nullptr) {
+                    return verifyError("problem with next attestation subject");
+                }
+                if (cursubj->length() != 32) {
+                    return verifyError("problem with next attestation subject");
+                }
+            } else {
+                return verifyError("problem with next attestation subject");
+            }
+
+            // gofunc: LocationSchemeInstanceFor
+            LocationURL *nextAttLoc = 
+                nextAttest->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+            if (nextAttLoc == nullptr) {
+                return verifyError("problem with next attestation location");
+            }
         }
     }
     return 0;
