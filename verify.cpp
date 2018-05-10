@@ -264,7 +264,7 @@ auto unmarshal(string derEncodedData, auto decodePtr, auto pdu) {
     return decodePtr;
 }
 
-string marshal(auto body) {
+string marshal(auto body, auto pdu) {
     const char *where = "initialization";
     int code = 0;
     EncodedBuffer eData;	/* encoded data */
@@ -272,7 +272,6 @@ string marshal(auto body) {
     objects_Control ctl;	/* ASN.1/C++ control object */
 
     try {
-        WaveEntityTbs_PDU pdu;		/* coding container for entity TBS value */
         ossEncodingRules encRule;	/* default encoding rules */
 
         where = "initial settings";
@@ -382,7 +381,8 @@ int verify(string pemContent) {
             }
 
             // gofunc: Verify
-            string eData = marshal(entity->get_tbs());
+            WaveEntityTbs_PDU pdu;
+            string eData = marshal(entity->get_tbs(), pdu);
 
             string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
             string ksStr(ks->get_buffer(), ks->length());
@@ -680,79 +680,15 @@ int verify(string pemContent) {
         }
 
         // gofunc: Verify
-        const char *where = "initialization";
-        int code = 0;
-        EncodedBuffer encodedData;	/* encoded data */
-        try {
-        objects_Control ctl;	/* ASN.1/C++ control object */
-
-        try {
-            SignedOuterKeyTbs_PDU pdu;		/* coding container for binding TBS value */
-            ossEncodingRules encRule;	/* default encoding rules */
-
-            where = "initial settings";
-
-            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU);
-            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
-
-            /*
-            * Get the encoding rule, which is set currently.
-            */
-            encRule = ctl.getEncodingRules();
-
-            /*
-            * Set the data to the coding container.
-            */
-            pdu.set_data(binding->get_tbs());
-
-            /*
-            * Print the input to the encoder.
-            */
-            printf("The input to the encoder...\n\n");
-            where = "printing";
-            pdu.print(ctl);
-
-            /*
-            * Encode the object.
-            */
-            printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-            where = "encoding";
-            pdu.encode(ctl, encodedData);
-            printf("\nPDU encoded successfully.\n");
-
-            /*
-            * Printing the encoded PDU.
-            */
-            printf("\n%s-Encoded PDU...\n\n",
-                encRule == OSS_BER ? "BER": "PER");
-            where = "printing";
-            encodedData.print_hex(ctl);
-            
-        } catch (ASN1Exception &exc) {
-            /*
-            * An error occurred during decoding.
-            */
-            code = report_error(&ctl, where, exc);
-        }
-        } catch (ASN1Exception &exc) {
-        /*
-        * An error occurred during control object initialization.
-        */
-        code = report_error(NULL, where, exc);
-        } catch (...) {
-        /*
-        * An unexpected exception is caught.
-        */
-        printf("Unexpected exception caught.\n");
-        code = -1;
-        }
+        SignedOuterKeyTbs_PDU keypdu;		/* coding container for binding TBS value */
+        string encodedData = marshal(binding->get_tbs(), keypdu);
 
         Public_Ed25519 *attesterKey = 
             attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
         string bindingSig(binding->get_signature().get_buffer(), binding->get_signature().length());
         string attKey(attesterKey->get_buffer(), attesterKey->length());
         if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
-            (const unsigned char *) encodedData.get_data(), encodedData.get_length(), 
+            (const unsigned char *) encodedData.c_str(), encodedData.length(), 
             (const unsigned char *) attKey.c_str())) {
             cerr << "signature: " << string_to_hex(bindingSig);
             cerr << "\nkey: " << string_to_hex(attKey) << "\n";
@@ -770,66 +706,8 @@ int verify(string pemContent) {
         }
         // check signature
         // gofunc: VerifySignature
-        where = "initialization";
-        EncodedBuffer encData;	/* encoded data */
-        try {
-        objects_Control ctl;	/* ASN.1/C++ control object */
-
-        try {
-            WaveAttestationTbs_PDU pdu;		/* coding container for attestation TBS value */
-            ossEncodingRules encRule;	/* default encoding rules */
-
-            where = "initial settings";
-
-            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
-
-            /*
-            * Get the encoding rule, which is set currently.
-            */
-            encRule = ctl.getEncodingRules();
-
-            /*
-            * Set the data to the coding container.
-            */
-            pdu.set_data(att->get_tbs());
-
-            /*
-            * Print the input to the encoder.
-            */
-            printf("The input to the encoder...\n\n");
-            where = "printing";
-            pdu.print(ctl);
-
-            /*
-            * Encode the object.
-            */
-            printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-            where = "encoding";
-            pdu.encode(ctl, encData);
-            printf("\nPDU encoded successfully.\n");
-
-        } catch (ASN1Exception &exc) {
-            /*
-            * An error occurred during decoding.
-            */
-            code = report_error(&ctl, where, exc);
-        }
-        } catch (ASN1Exception &exc) {
-        /*
-        * An error occurred during control object initialization.
-        */
-        code = report_error(NULL, where, exc);
-        } catch (...) {
-        /*
-        * An unexpected exception is caught.
-        */
-        printf("Unexpected exception caught.\n");
-        code = -1;
-        }
-        if (code) {
-            verifyError("code #4 failed");
-        }
+        WaveAttestationTbs_PDU apdu;
+        string encData = marshal(att->get_tbs(), apdu);
 
         Ed25519OuterSignature::verifyingKey vKey = osig->get_verifyingKey();
         Ed25519OuterSignature::signature sig = osig->get_signature();
@@ -837,7 +715,7 @@ int verify(string pemContent) {
         string v(vKey.get_buffer(), vKey.length());
         /* verify the signature */
         if (!ed25519_verify((const unsigned char *) s.c_str(), 
-                (const unsigned char *) encData.get_data(), encData.get_length(), 
+                (const unsigned char *) encData.c_str(), encData.length(), 
                 (const unsigned char *) v.c_str())) {
             verifyError("invalid outer signature");
         }
@@ -879,11 +757,7 @@ int verify(string pemContent) {
         OssString *cursubj = HashSchemeInstanceFor(currAtt);
 
         // gofunc: LocationSchemeInstanceFor
-        LocationURL *cursubloc = 
-            currAtt->get_tbs().get_subjectLocation().get_value().get_LocationURL();
-        if (cursubloc == nullptr) {
-            verifyError("problem with attestation location");
-        }
+        LocationURL *cursubloc = LocationSchemeInstanceFor(currAtt);
 
         // gofunc: PolicySchemeInstanceFor
         AttestationVerifierBody currBody = currAttItem.get_body();
@@ -910,11 +784,7 @@ int verify(string pemContent) {
             OssString *nextAttest = HashSchemeInstanceFor(nextAtt);
 
             // gofunc: LocationSchemeInstanceFor
-            LocationURL *nextAttLoc = 
-                nextAtt->get_tbs().get_subjectLocation().get_value().get_LocationURL();
-            if (nextAttLoc == nullptr) {
-                verifyError("problem with next attestation location");
-            }
+            LocationURL *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
 
 
         }
