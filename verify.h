@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <string>
 #include <list>
+#include <unordered_map>
 #include <vector>
 #include "objects.h"
 #include "aes-gcm/gcm.h"

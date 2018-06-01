@@ -192,7 +192,7 @@ OssString * HashSchemeInstanceFor(RTreePolicy *policy) {
     }
 }
 
-OssString * HashSchemeInstanceFor(RTreeStatement *statement) {
+string HashSchemeInstanceFor(RTreeStatement *statement) {
     RTreeStatement::permissionSet pSet = statement->get_permissionSet();
     OssEncOID id = pSet.get_type_id();
     if (id == keccak_256_id) {
@@ -203,7 +203,7 @@ OssString * HashSchemeInstanceFor(RTreeStatement *statement) {
         if (hash->length() != 32) {
             verifyError("problem with hash");
         }
-        return hash;
+        return string(hash->get_buffer(), hash->length());
     } else if (id == sha3_256_id) {
         HashSha3_256 *hash = pSet.get_value().get_HashSha3_256();
         if (hash == nullptr) {
@@ -212,7 +212,7 @@ OssString * HashSchemeInstanceFor(RTreeStatement *statement) {
         if (hash->length() != 32) {
             verifyError("problem with hash");
         }
-        return hash;
+        return string(hash->get_buffer(), hash->length());
     } else {
         verifyError("problem with hash");
     }
@@ -862,6 +862,7 @@ int verify(string pemContent) {
             if (memcmp(rhs_ns->get_buffer(), lhs_ns->get_buffer(), rhs_ns->length())) {
                 verifyError("different authority domain");
             }
+            // gofunc: intersectStatement
             RTreePolicy::statements policyStatements = policy->get_statements();
             OssIndex lhs_index = policyStatements.first();
             while (lhs_index != OSS_NOINDEX) {
@@ -872,12 +873,34 @@ int verify(string pemContent) {
                 while (rhs_index != OSS_NOINDEX) {
                     RTreeStatement *rightStatement = nextPolicyStatements.at(rhs_index);
                     rhs_index = nextPolicyStatements.next(rhs_index);
-                    OssString *lhs_ps = HashSchemeInstanceFor(leftStatement);
-                    OssString *rhs_ps = HashSchemeInstanceFor(rightStatement);
-                    if (memcmp(rhs_ps->get_buffer(), lhs_ps->get_buffer(), rhs_ps->length())) {
+                    string lhs_ps = HashSchemeInstanceFor(leftStatement);
+                    string rhs_ps = HashSchemeInstanceFor(rightStatement);
+                    if (lhs_ps.compare(rhs_ps) != 0) {
                         continue;
                     }
-                }
+
+                    unordered_map <string, bool> lhs_perms;
+                    OssIndex lpermIdx = leftStatement->get_permissions().first();
+                    while (lpermIdx != OSS_NOINDEX) {
+                        OssString *lperm = leftStatement->get_permissions().at(lpermIdx);
+                        lpermIdx = leftStatement->get_permissions().next(lpermIdx);
+                        lhs_perms[string(lperm->get_buffer(), lperm->length())] = true;
+                    }
+                    list<string> intersectionPerms;
+                    OssIndex rpermIdx = rightStatement->get_permissions().first();
+                    while (rpermIdx != OSS_NOINDEX) {
+                        OssString *rperm = rightStatement->get_permissions().at(rpermIdx);
+                        rpermIdx = rightStatement->get_permissions().next(rpermIdx);
+                        string rpermStr = string(rperm->get_buffer(), rperm->length());
+                        if (lhs_perms[rpermStr]) {
+                            intersectionPerms.push_back(rpermStr);
+                        }
+                    }
+                    if (intersectionPerms.size() == 0) {
+                        continue;
+                    }
+                    // gofunc: RestrictBy
+                }   
             }
         }
     }
