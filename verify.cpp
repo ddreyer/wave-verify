@@ -192,6 +192,32 @@ OssString * HashSchemeInstanceFor(RTreePolicy *policy) {
     }
 }
 
+OssString * HashSchemeInstanceFor(RTreeStatement *statement) {
+    RTreeStatement::permissionSet pSet = statement->get_permissionSet();
+    OssEncOID id = pSet.get_type_id();
+    if (id == keccak_256_id) {
+        HashKeccak_256 *hash = pSet.get_value().get_HashKeccak_256();
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->length() != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else if (id == sha3_256_id) {
+        HashSha3_256 *hash = pSet.get_value().get_HashSha3_256();
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->length() != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else {
+        verifyError("problem with hash");
+    }
+}
+
 LocationURL * LocationSchemeInstanceFor(WaveAttestation *att) {
     LocationURL *lsurl = att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
     if (lsurl == nullptr) {
@@ -294,39 +320,39 @@ string marshal(auto body, auto pdu) {
     int code = 0;
     EncodedBuffer eData;	/* encoded data */
     try {
-    objects_Control ctl;	/* ASN.1/C++ control object */
+        objects_Control ctl;	/* ASN.1/C++ control object */
 
-    try {
-        ossEncodingRules encRule;	/* default encoding rules */
+        try {
+            ossEncodingRules encRule;	/* default encoding rules */
 
-        where = "initial settings";
+            where = "initial settings";
 
-        ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-        ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
+            ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
+            ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
 
-        /*
-        * Get the encoding rule, which is set currently.
-        */
-        encRule = ctl.getEncodingRules();
+            /*
+            * Get the encoding rule, which is set currently.
+            */
+            encRule = ctl.getEncodingRules();
 
-        /*
-        * Set the data to the coding container.
-        */
-        pdu.set_data(body);
+            /*
+            * Set the data to the coding container.
+            */
+            pdu.set_data(body);
 
-        /*
-        * Encode the object.
-        */
-        printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-        where = "encoding";
-        pdu.encode(ctl, eData);
-        printf("\nPDU encoded successfully.\n");
-    } catch (ASN1Exception &exc) {
-        /*
-        * An error occurred during decoding.
-        */
-        code = report_error(&ctl, where, exc);
-    }
+            /*
+            * Encode the object.
+            */
+            printf("\nThe encoder's trace messages (only for SOED)...\n\n");
+            where = "encoding";
+            pdu.encode(ctl, eData);
+            printf("\nPDU encoded successfully.\n");
+        } catch (ASN1Exception &exc) {
+            /*
+            * An error occurred during decoding.
+            */
+            code = report_error(&ctl, where, exc);
+        }
     } catch (ASN1Exception &exc) {
     /*
     * An error occurred during control object initialization.
@@ -460,9 +486,6 @@ int verify(string pemContent) {
         }
 
         // Entity appears ok, let's unpack it further
-        // TODO: rv.revocations
-        // TODO: rv.extensions
-
         WaveEntity::tbs::keys tbsKeys = entity->get_tbs().get_keys();
         OssIndex tbsIndex = tbsKeys.first();
         while (tbsIndex != OSS_NOINDEX) {
@@ -671,7 +694,6 @@ int verify(string pemContent) {
             if (attesterHash->length() != 32) {
                 verifyError("attester hash not valid");
             }
-            //TODO: support non-keccak schemes
         } else {
             verifyError("unsupported attester hash scheme id");
         }
@@ -751,9 +773,7 @@ int verify(string pemContent) {
 
     cout << "Finished parsing attestations\n";
 
-    //TODO revocation checks
-    //todo check end to end and check all paths have same subject
-    //now verify the paths
+    // now verify the paths
     WaveExplicitProof::paths paths = exp->get_paths();
     cout << "paths retrieved\n";
     OssIndex pathIndex = paths.first();
@@ -841,6 +861,23 @@ int verify(string pemContent) {
             // not doing multihash
             if (memcmp(rhs_ns->get_buffer(), lhs_ns->get_buffer(), rhs_ns->length())) {
                 verifyError("different authority domain");
+            }
+            RTreePolicy::statements policyStatements = policy->get_statements();
+            OssIndex lhs_index = policyStatements.first();
+            while (lhs_index != OSS_NOINDEX) {
+                RTreeStatement *leftStatement = policyStatements.at(lhs_index);
+                lhs_index = policyStatements.next(lhs_index);
+                RTreePolicy::statements nextPolicyStatements = nextPolicy->get_statements();
+                OssIndex rhs_index = nextPolicyStatements.first();
+                while (rhs_index != OSS_NOINDEX) {
+                    RTreeStatement *rightStatement = nextPolicyStatements.at(rhs_index);
+                    rhs_index = nextPolicyStatements.next(rhs_index);
+                    OssString *lhs_ps = HashSchemeInstanceFor(leftStatement);
+                    OssString *rhs_ps = HashSchemeInstanceFor(rightStatement);
+                    if (memcmp(rhs_ps->get_buffer(), lhs_ps->get_buffer(), rhs_ps->length())) {
+                        continue;
+                    }
+                }
             }
         }
     }
