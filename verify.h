@@ -4,6 +4,7 @@
 #include <fstream>
 #include <streambuf>
 #include <iostream>
+#include <sstream>
 #include <stdio.h>
 #include <algorithm>
 #include <string>
@@ -33,6 +34,18 @@ public:
     AttestationItem(WaveAttestation *att, AttestationVerifierBody dBody);
     WaveAttestation * get_att();
     AttestationVerifierBody get_body();
+};
+
+class RTreeStatementItem {
+private:
+    RTreeStatement::permissionSet permissionSet;
+    std::list<std::string> permissions;
+    std::string intersectionResource;
+public:
+    RTreeStatementItem(RTreeStatement::permissionSet pSet, std::list<std::string> perms, std::string iResource);
+    RTreeStatement::permissionSet get_permissionSet();
+    std::list<std::string> get_permissions();
+    std::string get_interResource();
 };
 
 class ASN1Exception {

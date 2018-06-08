@@ -1,6 +1,7 @@
 #include "verify.h"
 
 const int CapCertification = 1;
+const int PermittedCombinedStatements = 1000;
 
 using namespace std;
 
@@ -28,6 +29,24 @@ WaveAttestation * AttestationItem::get_att() {
     
 AttestationVerifierBody AttestationItem::get_body() {
     return decryptedBody;
+}
+
+RTreeStatementItem::RTreeStatementItem(RTreeStatement::permissionSet pSet, list<string> perms, string iResource) {
+    permissionSet = pSet;
+    permissions = perms;
+    intersectionResource = iResource;
+}
+
+RTreeStatement::permissionSet RTreeStatementItem::get_permissionSet() {
+    return permissionSet;
+}
+
+list<string> RTreeStatementItem::get_permissions() {
+    return permissions;
+}
+
+string RTreeStatementItem::get_interResource() {
+    return intersectionResource;
 }
 
 ASN1Exception::ASN1Exception(int asn1_code) {
@@ -137,7 +156,7 @@ string string_to_hex(const std::string& input) {
     return output;
 }
 
-int verifyError(string errMessage) {
+void verifyError(string errMessage) {
     cerr << errMessage << "\n";
     exit(-1);
 }
@@ -192,8 +211,7 @@ OssString * HashSchemeInstanceFor(RTreePolicy *policy) {
     }
 }
 
-string HashSchemeInstanceFor(RTreeStatement *statement) {
-    RTreeStatement::permissionSet pSet = statement->get_permissionSet();
+string HashSchemeInstanceFor(RTreeStatement::permissionSet pSet) {
     OssEncOID id = pSet.get_type_id();
     if (id == keccak_256_id) {
         HashKeccak_256 *hash = pSet.get_value().get_HashKeccak_256();
@@ -369,6 +387,126 @@ string marshal(auto body, auto pdu) {
         verifyError("failed to marshal");
     }
     return string(eData.get_data(), eData.get_length());
+}
+
+vector<string> split(string s, string delimiter) {
+    size_t pos = 0;
+    string token;
+    vector<string> splitStr;
+    while ((pos = s.find(delimiter)) != string::npos) {
+        token = s.substr(0, pos);
+        splitStr.push_back(token);
+        s.erase(0, pos + delimiter.length());
+    }
+    splitStr.push_back(s);
+    return splitStr;
+}
+
+string emit(vector<string> *bout, vector<string> *fout) {
+    for (int i = 0; i < bout->size(); i++) {
+        fout->push_back((*bout)[bout->size()-i-1]);
+    }
+    stringstream ss;
+    for (size_t i = 0; i < fout->size(); ++i) {
+        if (i != 0) {
+            ss << ",";
+        }
+        ss << (*fout)[i];
+    }
+    return ss.str();
+}
+
+string RestrictBy(string from, string by) {
+    vector<string> fp = split(from, "/");
+    vector<string> bp = split(by, "/");
+    vector<string> fout;
+    vector<string> bout;
+    string intersectionResource;
+    // phase 1: emit matching prefix
+    int fi = 0, bi = 0;
+    int fni = fp.size() - 1, bni = bp.size() - 1;
+    for (; fi < fp.size() && bi < bp.size(); fi, bi = fi+1, bi+1) {
+        if (fp[fi] != "*" && (fp[fi] == bp[bi] || (bp[bi] == "+" && fp[fi] != "*"))) {
+            fout.push_back(fp[fi]);
+        } else if (fp[fi] == "+" && bp[bi] != "*") {
+            fout.push_back(bp[bi]);
+        } else {
+            break;
+        }
+    }
+    //phase 2
+    //emit matching suffix
+    for (; fni >= fi && bni >= bi; fni, bni = fni-1, bni-1) {
+        if (bp[bni] != "*" && (fp[fni] == bp[bni] || (bp[bni] == "+" && fp[fni] != "*"))) {
+            bout.push_back(fp[fni]);
+        } else if (fp[fni] == "+" && bp[bni] != "*") {
+            bout.push_back(bp[bni]);
+        } else {
+            break;
+        }
+    }
+    //phase 3
+    //emit front
+    if (fi < fp.size() && fp[fi] == "*") {
+        for (; bi < bp.size() && bp[bi] != "*" && bi <= bni; bi++) {
+            fout.push_back(bp[bi]);
+        }
+    } else if (bi < bp.size() && bp[bi] == "*") {
+        for (; fi < fp.size() && fp[fi] != "*" && fi <= fni; fi++) {
+            fout.push_back(fp[fi]);
+        }
+    }
+    //phase 4
+    //emit back
+    if (fni >= 0 && fp[fni] == "*") {
+        for (; bni >= 0 && bp[bni] != "*" && bni >= bi; bni--) {
+            bout.push_back(bp[bni]);
+        }
+    } else if (bni >= 0 && bp[bni] == "*") {
+        for (; fni >= 0 && fp[fni] != "*" && fni >= fi; fni--) {
+            bout.push_back(fp[fni]);
+        }
+    }
+    //phase 5
+    //emit star if they both have it
+    if (fi == fni && fp[fi] == "*" && bi == bni && bp[bi] == "*") {
+        fout.push_back("*");
+        intersectionResource = emit(&bout, &fout);
+    }
+    //Remove any stars
+    if (fi < fp.size() && fp[fi] == "*") {
+        fi++;
+    }
+    if (bi < bp.size() && bp[bi] == "*") {
+        bi++;
+    }
+    if ((fi == fni+1 || fi == fp.size()) && (bi == bni+1 || bi == bp.size())) {
+        intersectionResource = emit(&bout, &fout);
+    }
+    return intersectionResource;
+}
+
+bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset) {
+    string lhs_ps = HashSchemeInstanceFor(subset->get_permissionSet());
+    string rhs_ps = HashSchemeInstanceFor(superset->get_permissionSet());
+    if (lhs_ps.compare(rhs_ps) != 0) {
+        return false;
+    }
+    unordered_map<string, bool> superset_perms;
+    for (auto perm : superset->get_permissions()) {
+        superset_perms[perm] = true;
+    }
+    for (auto perm : subset->get_permissions()) {
+        if (!superset_perms[perm]) {
+            return false;
+        }
+    }
+    // gofunc: RestrictBy
+    string inter_uri = RestrictBy(subset->get_interResource(), superset->get_interResource());
+    if (inter_uri.empty()) {
+        return false;
+    }
+    return !inter_uri.compare(subset->get_interResource());
 }
 
 int verify(string pemContent) {
@@ -856,13 +994,14 @@ int verify(string pemContent) {
             }
 
             // gofunc: Intersect
-            OssString *rhs_ns = HashSchemeInstanceFor(policy);
+            OssString *rhs_ns = HashSchemeInstanceFor(nextPolicy);
             OssString *lhs_ns = HashSchemeInstanceFor(policy);
             // not doing multihash
             if (memcmp(rhs_ns->get_buffer(), lhs_ns->get_buffer(), rhs_ns->length())) {
                 verifyError("different authority domain");
             }
             // gofunc: intersectStatement
+            vector<RTreeStatementItem> statements;
             RTreePolicy::statements policyStatements = policy->get_statements();
             OssIndex lhs_index = policyStatements.first();
             while (lhs_index != OSS_NOINDEX) {
@@ -873,8 +1012,8 @@ int verify(string pemContent) {
                 while (rhs_index != OSS_NOINDEX) {
                     RTreeStatement *rightStatement = nextPolicyStatements.at(rhs_index);
                     rhs_index = nextPolicyStatements.next(rhs_index);
-                    string lhs_ps = HashSchemeInstanceFor(leftStatement);
-                    string rhs_ps = HashSchemeInstanceFor(rightStatement);
+                    string lhs_ps = HashSchemeInstanceFor(leftStatement->get_permissionSet());
+                    string rhs_ps = HashSchemeInstanceFor(rightStatement->get_permissionSet());
                     if (lhs_ps.compare(rhs_ps) != 0) {
                         continue;
                     }
@@ -900,7 +1039,46 @@ int verify(string pemContent) {
                         continue;
                     }
                     // gofunc: RestrictBy
+                    string from = string(leftStatement->get_resource().get_buffer(), 
+                        leftStatement->get_resource().length());
+                    string by = string(rightStatement->get_resource().get_buffer(), 
+                        rightStatement->get_resource().length());
+                    string intersectionResource = RestrictBy(from, by);
+
+                    if (intersectionResource.empty()) {
+                        RTreeStatementItem item(leftStatement->get_permissionSet(), intersectionPerms, intersectionResource);
+                        statements.push_back(item);
+                    }
                 }   
+            }
+
+            vector<RTreeStatementItem> dedup_statements;
+            next:
+            for (int orig_idx = 0; orig_idx < statements.size(); orig_idx++) {
+                for (int chosen_idx = 0; chosen_idx < dedup_statements.size(); chosen_idx++) {
+                    if (isStatementSupersetOf(&statements[orig_idx], &dedup_statements[chosen_idx])) {
+                        goto next;
+                    }
+                    if (isStatementSupersetOf(&dedup_statements[chosen_idx], &statements[orig_idx])) {
+                        dedup_statements[chosen_idx] = statements[orig_idx];
+                        goto next;
+                    }
+                }
+                dedup_statements.push_back(statements[orig_idx]);
+            }
+
+            if (policy->get_indirections() < nextPolicy->get_indirections()) {
+                indirections = policy->get_indirections() - 1;
+            } else {
+                indirections = nextPolicy->get_indirections() - 1;
+            }
+
+            //Check errors
+            if (indirections < 0) {
+                verifyError("insufficient permitted indirections");
+            }
+            if (dedup_statements.size() > PermittedCombinedStatements) {
+                verifyError("statements form too many combinations");
             }
         }
     }
