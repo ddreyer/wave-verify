@@ -610,16 +610,15 @@ int verify(string pemContent) {
 
             string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
             string ksStr(ks->get_buffer(), ks->length());
-            // TODO: checking signature currently fails
-            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-            //     (const unsigned char *) eData.c_str(), eData.length(), 
-            //     (const unsigned char *) ksStr.c_str())) {
-            //     cerr << "\nsig: " << string_to_hex(entSig);
-            //     cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
-            //     string d(eData.c_str(), eData.length());
-            //     cerr << "\ndata: " << string_to_hex(d);
-            //     verifyError("entity ed25519 signature invalid");
-            // }
+            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+                (const unsigned char *) eData.c_str(), eData.length(), 
+                (const unsigned char *) ksStr.c_str())) {
+                cerr << "\nsig: " << string_to_hex(entSig);
+                cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
+                string d(eData.c_str(), eData.length());
+                cerr << "\ndata: " << string_to_hex(d);
+                verifyError("entity ed25519 signature invalid");
+            }
             cout << "valid entity signature\n";
         } else if (entKeyId == curve25519_id) {
             Public_Curve25519 *ks = entKey.get_value().get_Public_Curve25519();
@@ -822,6 +821,7 @@ int verify(string pemContent) {
                 vbody = unmarshal(string(vBodyPtr, bodyLen-16), vbody, pdu);
         
                 decryptedBody = vbody->get_attestationVerifierBody();
+                delete vbody;
             }
         } else {
             verifyError("unsupported body scheme");
@@ -950,6 +950,7 @@ int verify(string pemContent) {
     vector<RTreePolicy> pathpolicies;
     vector<OssString *> pathEndEntities;
     WaveExplicitProof::paths paths = exp->get_paths();
+    delete wwoPtr;
     cout << "paths retrieved\n";
     OssIndex pathIndex = paths.first();
     while (pathIndex != OSS_NOINDEX) {
