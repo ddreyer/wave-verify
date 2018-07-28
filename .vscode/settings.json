@@ -1,0 +1,89 @@
+{
+    "deploy": {
+        "targets": [
+            {
+                "type": "sftp",
+                "name": "Wave SGX server",
+                "description": "wave project",
+                "host": "ante.cs.berkeley.edu", "port": 22,
+                "dir": "wave-verify/",
+                "user": "sgx",
+                "privateKey": "/Users/dyldreyer/.ssh/github_rsa",
+
+                "checkBeforeDeploy": true,
+
+                "deployOnSave": true,
+
+ 
+                
+            },
+        ],
+        "packages": [
+            {
+                "name": "Wave verify",
+                "description": "verify code",
+                "files": [
+                    "**/*.cpp",
+                    "**/*.h",
+                    "**/Makefile",
+                    "**/objects.asn"
+                ],
+                "deployOnSave": true
+            },
+            {
+                "name": "aes-gcm",
+                "description": "aes-gcm",
+                "files": [
+                    "**/aes-gcm/*"
+                ],
+                "deployOnChange": true
+            },
+            {
+                "name": "ed25519",
+                "description": "ed25519",
+                "files": [
+                    "**/ed25519/src/*"
+                ],
+                "deployOnChange": true
+            },
+            {
+                "name": "hash-library",
+                "files": [
+                    "**/hash-library/*"
+                ],
+                "deployOnChange": true
+            }
+        ]
+    },
+    "files.associations": {
+        "exception": "cpp",
+        "utils.h": "c",
+        "iostream": "cpp",
+        "type_traits": "cpp",
+        "*.tcc": "cpp",
+        "cctype": "cpp",
+        "clocale": "cpp",
+        "cstddef": "cpp",
+        "cstdint": "cpp",
+        "cstdio": "cpp",
+        "cstdlib": "cpp",
+        "cwchar": "cpp",
+        "cwctype": "cpp",
+        "fstream": "cpp",
+        "initializer_list": "cpp",
+        "iosfwd": "cpp",
+        "istream": "cpp",
+        "limits": "cpp",
+        "new": "cpp",
+        "ostream": "cpp",
+        "streambuf": "cpp",
+        "typeinfo": "cpp",
+        "cmath": "cpp",
+        "utility": "cpp",
+        "deque": "cpp",
+        "vector": "cpp",
+        "array": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp"
+    }
+}
