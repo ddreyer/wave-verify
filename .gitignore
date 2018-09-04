@@ -1,7 +1,7 @@
 proof*
 verify
 .idea*
-.vscode*
 *.o
 objects.h
 objects.cpp
+.DS_Store
