@@ -1,0 +1,233 @@
+ASN_MODULE_SRCS=	\
+	WaveWireObject.c	\
+	WaveAttestation.c	\
+	WaveEncryptedMessage.c	\
+	AttestationBody.c	\
+	AttestationVerifierBody.c	\
+	Extension.c	\
+	RevocationOption.c	\
+	WaveEntity.c	\
+	WaveEntitySecret.c	\
+	EntityKeyring.c	\
+	EntityKeyringEntry.c	\
+	BN256OAQUEKeyringBundle.c	\
+	BN256OAQUEBundleEntry.c	\
+	EntityPrivateKey.c	\
+	EntityPublicKey.c	\
+	Capability.c	\
+	WaveExplicitProof.c	\
+	AttestationReference.c	\
+	RTreePolicy.c	\
+	RTreeStatement.c	\
+	AttestationVerifierKey.c	\
+	RevocationCheck.c	\
+	Hash.c	\
+	EntityHash.c	\
+	AttestationHash.c	\
+	HashSha3-256.c	\
+	HashSha-256.c	\
+	HashKeccak-256.c	\
+	Location.c	\
+	LocationURL.c	\
+	LocationEthereum.c	\
+	PSKBodyCiphertext.c	\
+	WaveNameDeclaration.c	\
+	NameDeclarationKey.c	\
+	NameDeclarationBody.c	\
+	NameDeclarationKeyNone.c	\
+	NameDeclarationKeyWR1.c	\
+	NameDeclarationWR1Envelope.c	\
+	WR1BodyCiphertext.c	\
+	WR1Envelope.c	\
+	WR1ProverBody.c	\
+	WR1VerifierBody.c	\
+	Ed25519OuterSignature.c	\
+	Signature.c	\
+	SignedOuterKey.c	\
+	TrustLevel.c	\
+	CommitmentRevocationOption.c	\
+	AVKeyAES128-GCM.c	\
+	Private-Ed25519.c	\
+	Private-Curve25519.c	\
+	Private-BN256-OAQUE.c	\
+	Private-BN256-IBE.c	\
+	Master-BN256-OAQUE.c	\
+	Master-BN256-IBE.c	\
+	Public-Ed25519.c	\
+	Public-Curve25519.c	\
+	Public-OAQUE.c	\
+	Params-BN256-OAQUE.c	\
+	Params-BN256-IBE.c	\
+	Public-BN256-IBE.c	\
+	KeyringAESCiphertext.c	\
+	MessageKeyCurve25519ECDH.c	\
+	MessageKeyWR1.c	\
+	MessageKeyWR1Envelope.c	\
+	EXTERNAL.c
+
+ASN_MODULE_HDRS=	\
+	WaveWireObject.h	\
+	WaveAttestation.h	\
+	WaveEncryptedMessage.h	\
+	AttestationBody.h	\
+	AttestationVerifierBody.h	\
+	Extension.h	\
+	RevocationOption.h	\
+	WaveEntity.h	\
+	WaveEntitySecret.h	\
+	EntityKeyring.h	\
+	EntityKeyringEntry.h	\
+	BN256OAQUEKeyringBundle.h	\
+	BN256OAQUEBundleEntry.h	\
+	EntityPrivateKey.h	\
+	EntityPublicKey.h	\
+	Capability.h	\
+	WaveExplicitProof.h	\
+	AttestationReference.h	\
+	RTreePolicy.h	\
+	RTreeStatement.h	\
+	AttestationVerifierKey.h	\
+	RevocationCheck.h	\
+	Hash.h	\
+	EntityHash.h	\
+	AttestationHash.h	\
+	HashSha3-256.h	\
+	HashSha-256.h	\
+	HashKeccak-256.h	\
+	Location.h	\
+	LocationURL.h	\
+	LocationEthereum.h	\
+	PSKBodyCiphertext.h	\
+	WaveNameDeclaration.h	\
+	NameDeclarationKey.h	\
+	NameDeclarationBody.h	\
+	NameDeclarationKeyNone.h	\
+	NameDeclarationKeyWR1.h	\
+	NameDeclarationWR1Envelope.h	\
+	WR1BodyCiphertext.h	\
+	WR1Envelope.h	\
+	WR1ProverBody.h	\
+	WR1VerifierBody.h	\
+	Ed25519OuterSignature.h	\
+	Signature.h	\
+	SignedOuterKey.h	\
+	TrustLevel.h	\
+	CommitmentRevocationOption.h	\
+	AVKeyAES128-GCM.h	\
+	Private-Ed25519.h	\
+	Private-Curve25519.h	\
+	Private-BN256-OAQUE.h	\
+	Private-BN256-IBE.h	\
+	Master-BN256-OAQUE.h	\
+	Master-BN256-IBE.h	\
+	Public-Ed25519.h	\
+	Public-Curve25519.h	\
+	Public-OAQUE.h	\
+	Params-BN256-OAQUE.h	\
+	Params-BN256-IBE.h	\
+	Public-BN256-IBE.h	\
+	KeyringAESCiphertext.h	\
+	MessageKeyCurve25519ECDH.h	\
+	MessageKeyWR1.h	\
+	MessageKeyWR1Envelope.h	\
+	EXTERNAL.h
+
+ASN_MODULE_HDRS+=ANY.h
+ASN_MODULE_SRCS+=ANY.c
+ASN_MODULE_HDRS+=OCTET_STRING.h
+ASN_MODULE_HDRS+=OPEN_TYPE.h
+ASN_MODULE_SRCS+=OPEN_TYPE.c
+ASN_MODULE_HDRS+=constr_CHOICE.h
+ASN_MODULE_HDRS+=BOOLEAN.h
+ASN_MODULE_SRCS+=BOOLEAN.c
+ASN_MODULE_HDRS+=GeneralizedTime.h
+ASN_MODULE_SRCS+=GeneralizedTime.c
+ASN_MODULE_HDRS+=GraphicString.h
+ASN_MODULE_SRCS+=GraphicString.c
+ASN_MODULE_HDRS+=INTEGER.h
+ASN_MODULE_SRCS+=INTEGER.c
+ASN_MODULE_HDRS+=NativeInteger.h
+ASN_MODULE_SRCS+=NativeInteger.c
+ASN_MODULE_HDRS+=OBJECT_IDENTIFIER.h
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER.c
+ASN_MODULE_HDRS+=ObjectDescriptor.h
+ASN_MODULE_SRCS+=ObjectDescriptor.c
+ASN_MODULE_HDRS+=UTCTime.h
+ASN_MODULE_SRCS+=UTCTime.c
+ASN_MODULE_HDRS+=UTF8String.h
+ASN_MODULE_SRCS+=UTF8String.c
+ASN_MODULE_HDRS+=asn_SEQUENCE_OF.h
+ASN_MODULE_SRCS+=asn_SEQUENCE_OF.c
+ASN_MODULE_HDRS+=asn_SET_OF.h
+ASN_MODULE_SRCS+=asn_SET_OF.c
+ASN_MODULE_SRCS+=constr_CHOICE.c
+ASN_MODULE_HDRS+=constr_SEQUENCE.h
+ASN_MODULE_SRCS+=constr_SEQUENCE.c
+ASN_MODULE_HDRS+=constr_SEQUENCE_OF.h
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF.c
+ASN_MODULE_HDRS+=constr_SET_OF.h
+ASN_MODULE_SRCS+=constr_SET_OF.c
+ASN_MODULE_HDRS+=asn_application.h
+ASN_MODULE_SRCS+=asn_application.c
+ASN_MODULE_HDRS+=asn_ioc.h
+ASN_MODULE_HDRS+=asn_system.h
+ASN_MODULE_HDRS+=asn_codecs.h
+ASN_MODULE_HDRS+=asn_internal.h
+ASN_MODULE_SRCS+=asn_internal.c
+ASN_MODULE_HDRS+=asn_random_fill.h
+ASN_MODULE_SRCS+=asn_random_fill.c
+ASN_MODULE_HDRS+=asn_bit_data.h
+ASN_MODULE_SRCS+=asn_bit_data.c
+ASN_MODULE_SRCS+=OCTET_STRING.c
+ASN_MODULE_HDRS+=BIT_STRING.h
+ASN_MODULE_SRCS+=BIT_STRING.c
+ASN_MODULE_SRCS+=asn_codecs_prim.c
+ASN_MODULE_HDRS+=asn_codecs_prim.h
+ASN_MODULE_HDRS+=ber_tlv_length.h
+ASN_MODULE_SRCS+=ber_tlv_length.c
+ASN_MODULE_HDRS+=ber_tlv_tag.h
+ASN_MODULE_SRCS+=ber_tlv_tag.c
+ASN_MODULE_HDRS+=ber_decoder.h
+ASN_MODULE_SRCS+=ber_decoder.c
+ASN_MODULE_HDRS+=der_encoder.h
+ASN_MODULE_SRCS+=der_encoder.c
+ASN_MODULE_HDRS+=constr_TYPE.h
+ASN_MODULE_SRCS+=constr_TYPE.c
+ASN_MODULE_HDRS+=constraints.h
+ASN_MODULE_SRCS+=constraints.c
+ASN_MODULE_HDRS+=xer_support.h
+ASN_MODULE_SRCS+=xer_support.c
+ASN_MODULE_HDRS+=xer_decoder.h
+ASN_MODULE_SRCS+=xer_decoder.c
+ASN_MODULE_HDRS+=xer_encoder.h
+ASN_MODULE_SRCS+=xer_encoder.c
+ASN_MODULE_HDRS+=per_support.h
+ASN_MODULE_SRCS+=per_support.c
+ASN_MODULE_HDRS+=per_decoder.h
+ASN_MODULE_SRCS+=per_decoder.c
+ASN_MODULE_HDRS+=per_encoder.h
+ASN_MODULE_SRCS+=per_encoder.c
+ASN_MODULE_HDRS+=per_opentype.h
+ASN_MODULE_SRCS+=per_opentype.c
+ASN_MODULE_HDRS+=oer_decoder.h
+ASN_MODULE_HDRS+=oer_encoder.h
+ASN_MODULE_HDRS+=oer_support.h
+ASN_MODULE_SRCS+=oer_decoder.c
+ASN_MODULE_SRCS+=oer_encoder.c
+ASN_MODULE_SRCS+=oer_support.c
+ASN_MODULE_SRCS+=OPEN_TYPE_oer.c
+ASN_MODULE_SRCS+=INTEGER_oer.c
+ASN_MODULE_SRCS+=BIT_STRING_oer.c
+ASN_MODULE_SRCS+=OCTET_STRING_oer.c
+ASN_MODULE_SRCS+=NativeInteger_oer.c
+ASN_MODULE_SRCS+=constr_CHOICE_oer.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_oer.c
+ASN_MODULE_SRCS+=constr_SET_OF_oer.c
+
+ASN_MODULE_CFLAGS=
+
+lib_LTLIBRARIES+=libasncodec.la
+libasncodec_la_SOURCES=$(ASN_MODULE_SRCS) $(ASN_MODULE_HDRS)
+libasncodec_la_CPPFLAGS=-I$(top_srcdir)/
+libasncodec_la_CFLAGS=$(ASN_MODULE_CFLAGS)
+libasncodec_la_LDFLAGS=-lm
