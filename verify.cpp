@@ -551,8 +551,18 @@ int verify(string pemContent) {
     if (derEncodedData.length() == 0) {
     	verifyError("could not decode proof from DER format");
     }
-    return 0;}
+    asn_dec_rval_t rval;
+    WaveWireObject_t *wwoPtr = 0;
 
+    // rval = asn_DEF_WaveWireObject.ber_decoder(0, &asn_DEF_WaveWireObject, (void **) &wwoPtr, 0);
+    // if (rval.code == RC_OK) {
+    //     return rect;
+    // } else {
+    //     asn_DEF_WaveWireObject.free_struct(&asn_DEF_WaveWireObject, wwoPtr, 0);
+    //     return 0;
+    // }
+
+    }
 //     WaveWireObject *wwoPtr = nullptr;
 //     WaveWireObject_PDU pdu;
 //     wwoPtr = unmarshal(derEncodedData, wwoPtr, pdu);	/* pointer to decoded data */
