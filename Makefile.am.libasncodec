@@ -56,8 +56,8 @@ ASN_MODULE_SRCS=	\
 	asn1c_files/Public-Ed25519.c	\
 	asn1c_files/Public-Curve25519.c	\
 	asn1c_files/Public-OAQUE.c	\
-	Params-BN256-OAQUE.c	\
-	Params-BN256-IBE.c	\
+	asn1c_files/Params-BN256-OAQUE.c	\
+	asn1c_files/Params-BN256-IBE.c	\
 	asn1c_files/Public-BN256-IBE.c	\
 	KeyringAESCiphertext.c	\
 	asn1c_files/MessageKeyCurve25519ECDH.c	\
