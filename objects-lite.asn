@@ -3,21 +3,12 @@ BEGIN
 
   -- When saved in a file or sent over the wire, wrap the object with a
   -- type identifier
-  WaveWireObject ::= INSTANCE OF TYPE-IDENTIFIER ({WaveObjects})
+  WaveWireObject ::= EXTERNAL
 
   -- A set of policy statements about an Entity, potentially granting
   -- permissions or establishing facts
   WaveAttestation ::= SEQUENCE {
-    tbs WaveAttestationTbs,
-    -- The attestation is signed with an ephemeral signing key generated
-    -- for a single use (or another signature scheme suitable for single
-    -- use is permitted). The details of this signature are bound to
-    -- the real attestation key inside the body but we don't reveal the
-    -- attester at this layer
-    outerSignature INSTANCE OF TYPE-IDENTIFIER ({OuterSignatureSchemes})
-  }
-
-  WaveAttestationTbs ::= SEQUENCE {
+    tbs SEQUENCE {
       -- the subject of the attestation, who is receiving permissions or
       -- having a property attested to
       subject EntityHash,
@@ -34,8 +25,30 @@ BEGIN
       -- AttestationBody object but depending on the context of the
       -- decryption (e.g prover vs verifier) the contents of that
       -- AttestationBody object may differ.
-      body INSTANCE OF TYPE-IDENTIFIER ({AttestationBodySchemes})
-    }
+      body EXTERNAL
+    },
+    -- The attestation is signed with an ephemeral signing key generated
+    -- for a single use (or another signature scheme suitable for single
+    -- use is permitted). The details of this signature are bound to
+    -- the real attestation key inside the body but we don't reveal the
+    -- attester at this layer
+    outerSignature EXTERNAL
+  }
+
+
+  -- An arbitrary message encrypted using WAVE
+  WaveEncryptedMessage ::= SEQUENCE {
+    -- content: arbitrary message contents
+    -- encryption algorithm: AES128
+    -- key: contentsKey
+    contents OCTET STRING,
+
+    -- encrypted forms of contentsKey
+    keys SEQUENCE OF EXTERNAL,
+
+    -- Additional extension fields
+    extensions SEQUENCE OF Extension
+  }
 
   -- Irrespective of the algorithm used to encrypt the body, this
   -- is the object it contains
@@ -47,7 +60,7 @@ BEGIN
     -- Material relating to the policy scheme that is only visible
     -- to the prover. When decoding as a verifier, this should not be
     -- visible
-    proverPolicyAddendums SEQUENCE OF PolicyAddendum,
+    proverPolicyAddendums SEQUENCE OF EXTERNAL,
 
     -- These are fields that contain information that should be
     -- visible to the subject of the Attestation (and perhaps
@@ -57,7 +70,6 @@ BEGIN
 
   }
 
-  PolicyAddendum ::= INSTANCE OF TYPE-IDENTIFIER ({PolicyAddendumSchemes})
 
   -- These are fields visible to both prover and verifier
   AttestationVerifierBody ::= SEQUENCE {
@@ -90,14 +102,14 @@ BEGIN
     },
 
     -- the nature of the trust
-    policy INSTANCE OF TYPE-IDENTIFIER ({PolicySchemes}),
+    policy EXTERNAL,
 
     -- extensions for use by the verifier
     extensions SEQUENCE OF Extension,
 
     -- binding that proves that the outer signature is made by the same
     -- key that the source used (the ephemeral keys have not been switched)
-    outerSignatureBinding INSTANCE OF TYPE-IDENTIFIER ({OuterSignatureBindingSchemes})
+    outerSignatureBinding EXTERNAL
   }
 
   Extension ::= SEQUENCE {
@@ -112,17 +124,11 @@ BEGIN
     -- If this revocation scheme is not understood, should
     -- the object be treated as revoked (TRUE) or not (FALSE)
     critical BOOLEAN,
-    scheme INSTANCE OF TYPE-IDENTIFIER ({RevocationSchemes})
+    scheme EXTERNAL
   }
 
   WaveEntity ::= SEQUENCE {
-    tbs WaveEntityTbs,
-    -- the algorithm is determined by the type of
-    -- verifyingKey
-    signature OCTET STRING
-  }
-
-  WaveEntityTbs ::= SEQUENCE {
+    tbs SEQUENCE {
       -- the canonical certification and attestation key. This is what is used
       -- to sign attestation outerSignatureBindings, and to sign this object
       verifyingKey EntityPublicKey,
@@ -137,12 +143,16 @@ BEGIN
       revocations SEQUENCE OF RevocationOption,
       -- extensions
       extensions SEQUENCE OF Extension
-    }
+    },
+    -- the algorithm is determined by the type of
+    -- verifyingKey
+    signature OCTET STRING
+  }
 
   WaveEntitySecret ::= SEQUENCE {
     entity WaveEntity,
 
-    keyring INSTANCE OF TYPE-IDENTIFIER ({EntityKeyringSchemes})
+    keyring EXTERNAL
   }
 
   EntityKeyring ::= SEQUENCE {
@@ -154,11 +164,24 @@ BEGIN
     secret EntityPrivateKey
   }
 
-  EntityPrivateKey ::= INSTANCE OF TYPE-IDENTIFIER ({EntitySecretKeySchemes})
+  BN256OAQUEKeyringBundle ::= SEQUENCE {
+    params Params-BN256-OAQUE,
+    entries SEQUENCE OF BN256OAQUEBundleEntry
+  }
+
+  BN256OAQUEBundleEntry ::= SEQUENCE {
+    partitionChange SEQUENCE OF SEQUENCE {
+      index INTEGER,
+      content OCTET STRING
+    },
+    key Private-BN256-OAQUE
+  }
+
+  EntityPrivateKey ::= EXTERNAL
 
   EntityPublicKey ::= SEQUENCE {
     capabilityFlags SET OF Capability,
-    key INSTANCE OF TYPE-IDENTIFIER ({EntityKeySchemes})
+    key EXTERNAL
   }
 
   Capability ::= INTEGER {
@@ -221,6 +244,7 @@ BEGIN
     -- the namespace, common to all statements. This also becomes the
     -- WR1 domain for visibility control if wr1 is used
     namespace EntityHash,
+    namespaceLocation Location,
     -- specifically for use with WR1, this controls who can see the
     -- attestation
     -- this is a virtual field, there must exist some function
@@ -241,13 +265,13 @@ BEGIN
 
   -- A key specifically to enable a verifier to inspect a subset of an attestation
   -- for the purposes of verifying a proof
-  AttestationVerifierKey ::= INSTANCE OF TYPE-IDENTIFIER ({AttestationVerifierKeySchemes})
+  AttestationVerifierKey ::= EXTERNAL
 
   -- A mini proof that a revocation does not exist
-  RevocationCheck ::= INSTANCE OF TYPE-IDENTIFIER ({RevocationCheckSchemes})
+  RevocationCheck ::= EXTERNAL
 
 
-  Hash ::= INSTANCE OF TYPE-IDENTIFIER ({HashSchemes})
+  Hash ::= EXTERNAL
   EntityHash ::= Hash
   AttestationHash ::= Hash
   -- The three currently supported hash schemes
@@ -257,7 +281,7 @@ BEGIN
 
   -- When referencing an attestation or entity hash, where should this be
   -- resolvable
-  Location ::= INSTANCE OF TYPE-IDENTIFIER ({LocationSchemes})
+  Location ::= EXTERNAL
 
   -- this object will be DER encoded and present in the location.value scheme
   -- when the scheme is location-scheme-url
@@ -279,6 +303,62 @@ BEGIN
     attestationBodyCiphertext OCTET STRING,
     -- the key used for encryption (which also conveys the scheme)
     encryptedUnder  EntityPublicKey
+  }
+
+  WaveNameDeclaration ::= SEQUENCE {
+    tbs SEQUENCE {
+      attester EntityHash,
+      attesterLocation Location,
+      revocations SEQUENCE OF RevocationOption,
+      publicExtensions SEQUENCE OF Extension,
+      -- content: NameDeclarationBody
+      -- encryption algorithm: AES128
+      -- encryption key: bodyKey
+      body OCTET STRING,
+      keys SEQUENCE OF NameDeclarationKey
+    },
+    signature OCTET STRING
+  }
+
+  NameDeclarationKey ::= EXTERNAL
+
+  NameDeclarationBody ::= SEQUENCE {
+    name UTF8String,
+    subject EntityHash,
+    subjectLocation Location,
+    validity SEQUENCE {
+      notBefore UTCTime,
+      notAfter UTCTime
+    },
+    privateExtensions SEQUENCE OF Extension
+  }
+
+  -- empty sequence, the body is then just DER encoded
+  NameDeclarationKeyNone ::= SEQUENCE {
+
+  }
+
+  NameDeclarationKeyWR1 ::= SEQUENCE {
+    -- content: MessageKeyWR1Envelope DER encoded
+    -- encryption algorithm: AES128
+    -- encryption key: envelopeKey
+    envelope OCTET STRING,
+
+    -- content envelopeKey
+    -- encryption algorithm: IBE-bn256 in declaration namespace system
+    -- id: envelopeID (namespace)
+    envelopeKey-ibe-bn256 OCTET STRING,
+
+    namespace EntityHash,
+    namespaceLocation Location
+  }
+
+  NameDeclarationWR1Envelope ::= SEQUENCE {
+    partition SEQUENCE OF OCTET STRING,
+    -- content: bodyKey
+    -- encryption algorithm: oaque-bn256
+    -- encryption id: partition
+    bodyKey OCTET STRING
   }
 
   -- A body ciphertext for the wave reference 1 scheme
@@ -308,7 +388,14 @@ BEGIN
     -- key: ECDH (outer signature key, subject key)
     -- this permits reading the envelope if you are the direct
     -- recipient, even without knowing the namespace
-    envelopeKey-curve25519 OCTET STRING
+    envelopeKey-curve25519 OCTET STRING,
+
+    -- content prover/verifierBodyKeys
+    -- encryption algorithm: AES128
+    -- key: ECDH (outer signature key, attester key)
+    -- this permits reading the attestation if you are the attester
+    -- even without knowing the namespace
+    envelopeKey-curve25519-attester OCTET STRING
   }
 
   WR1Envelope ::= SEQUENCE {
@@ -325,7 +412,7 @@ BEGIN
     --which keys do we give other people
     --we have PartitionKeys that reveal the content
     --we have a Domain Key that reveals the partition attribute set
-    addendums SEQUENCE OF PolicyAddendum,
+    addendums SEQUENCE OF EXTERNAL,
 
     extensions SEQUENCE OF Extension
   }
@@ -339,14 +426,18 @@ BEGIN
     signature OCTET STRING
   }
 
-  SignedOuterKey ::= SEQUENCE {
-    tbs SignedOuterKeyTbs,
+  Signature ::= SEQUENCE {
+    -- use the key scheme as an identifier
+    scheme OBJECT IDENTIFIER,
     signature OCTET STRING
   }
 
-  SignedOuterKeyTbs ::= SEQUENCE {
-    outerSignatureScheme OBJECT IDENTIFIER,
-    verifyingKey OCTET STRING
+  SignedOuterKey ::= SEQUENCE {
+    tbs SEQUENCE {
+      outerSignatureScheme OBJECT IDENTIFIER,
+      verifyingKey OCTET STRING
+    },
+    signature OCTET STRING
   }
 
   TrustLevel ::= SEQUENCE {
@@ -388,198 +479,32 @@ BEGIN
     iterations INTEGER
   }
 
---------------------------------------------------------------------------------
--- Universal OIDs
---------------------------------------------------------------------------------
-wave-id OBJECT IDENTIFIER ::= { 1 3 6 1 4 1 51157 }
+  MessageKeyCurve25519ECDH ::= SEQUENCE {
+    ciphertext OCTET STRING
+  }
 
--- Wave object types
---------------------------------------------------------------------------------
-wave-object OBJECT IDENTIFIER ::= { wave-id 2 }
-attestation-id OBJECT IDENTIFIER ::= { wave-object 1 }
-entity-id OBJECT IDENTIFIER ::= { wave-object 2 }
-explicit-proof-id OBJECT IDENTIFIER ::= { wave-object 3 }
-entity-secret-id OBJECT IDENTIFIER ::= { wave-object 4 }
-entity-tbs OBJECT IDENTIFIER ::= { wave-object 5}
-WaveObjects TYPE-IDENTIFIER ::= {
-  {WaveAttestation IDENTIFIED BY attestation-id} |
-  {WaveEntity IDENTIFIED BY entity-id} |
-  {WaveExplicitProof IDENTIFIED BY explicit-proof-id} |
-  {WaveEntitySecret IDENTIFIED BY entity-secret-id} |
-  {WaveEntityTbs IDENTIFIED BY entity-tbs},
-...
-}
+  MessageKeyWR1 ::= SEQUENCE {
+    -- content: MessageKeyWR1Envelope DER encoded
+    -- encryption algorithm: AES128
+    -- encryption key: envelopeKey
+    envelope OCTET STRING,
 
--- Attestation body schemes
---------------------------------------------------------------------------------
-attestation-body-scheme OBJECT IDENTIFIER ::= { wave-id 3 }
--- the body is included directly
-unencrypted-body-scheme OBJECT IDENTIFIER ::= { attestation-body-scheme 1 }
--- the body is decrypted using the Wave Reference 1 scheme
-wr1-body-scheme-v1 OBJECT IDENTIFIER ::= { attestation-body-scheme 2 }
--- the body is decrypted using some pre shared key. This is mostly
--- to force implementations not to be too tied to a specific body scheme
--- which would hinder future development of new body schemes
-psk-body-scheme OBJECT IDENTIFIER ::= { attestation-body-scheme 3 }
-attestation-tbs OBJECT IDENTIFIER ::= { attestation-body-scheme 4}
-AttestationBodySchemes TYPE-IDENTIFIER ::= {
- {AttestationBody IDENTIFIED BY unencrypted-body-scheme} |
- {WR1BodyCiphertext IDENTIFIED BY wr1-body-scheme-v1} |
- {PSKBodyCiphertext IDENTIFIED BY psk-body-scheme} |
- {WaveAttestationTbs IDENTIFIED BY attestation-tbs},
- ...
-}
+    -- content envelopeKey
+    -- encryption algorithm: IBE-bn256 in message namespace system
+    -- id: envelopeID (namespace)
+    envelopeKey-ibe-bn256 OCTET STRING,
 
--- Attestation Verifier Key Schemes
---------------------------------------------------------------------------------
-attestation-verifier-key-scheme OBJECT IDENTIFIER ::= { wave-id 4 }
-attestation-verifier-key-aes128-gcm OBJECT IDENTIFIER ::= { attestation-verifier-key-scheme 1 }
-AttestationVerifierKeySchemes TYPE-IDENTIFIER ::= {
- {AVKeyAES128-GCM IDENTIFIED BY attestation-verifier-key-aes128-gcm},
- ...
-}
+    -- the system for the keys
+    namespace EntityHash,
+    namespaceLocation Location
+  }
 
--- Outer signature schemes
---------------------------------------------------------------------------------
-outer-signature-scheme OBJECT IDENTIFIER ::= { wave-id 5 }
-ephemeral-ed25519 OBJECT IDENTIFIER ::= { outer-signature-scheme 1 }
-OuterSignatureSchemes TYPE-IDENTIFIER ::= {
- {Ed25519OuterSignature IDENTIFIED BY ephemeral-ed25519},
- ...
-}
-
-
-
--- Outer signature binding schemes
---------------------------------------------------------------------------------
-outer-signature-binding-scheme OBJECT IDENTIFIER ::= { wave-id 6 }
-signed-outer-key OBJECT IDENTIFIER ::= { outer-signature-binding-scheme 1 }
-signed-outer-key-tbs OBJECT IDENTIFIER ::= { outer-signature-binding-scheme 2 }
-OuterSignatureBindingSchemes TYPE-IDENTIFIER ::= {
- {SignedOuterKey IDENTIFIED BY signed-outer-key} |
- {SignedOuterKeyTbs IDENTIFIED BY signed-outer-key-tbs},
- ...
-}
-
--- Revocation check schemes
---------------------------------------------------------------------------------
-revocation-check-schemes OBJECT IDENTIFIER ::= { wave-id 7 }
-RevocationCheckSchemes TYPE-IDENTIFIER ::= {
-  ...
-}
-
--- Location schemes
---------------------------------------------------------------------------------
-location-scheme OBJECT IDENTIFIER ::= { wave-id 8 }
-location-url-id OBJECT IDENTIFIER ::= { location-scheme 1 }
-location-ethereum-v1-id OBJECT IDENTIFIER ::= { location-scheme 2 }
-LocationSchemes TYPE-IDENTIFIER ::= {
-  {LocationURL IDENTIFIED BY location-url-id} |
-  {LocationEthereum IDENTIFIED BY location-ethereum-v1-id},
-  ...
-}
-
--- Hash schemes
---------------------------------------------------------------------------------
-hash-scheme OBJECT IDENTIFIER ::= { wave-id 9 }
-sha3-256-id OBJECT IDENTIFIER ::= { hash-scheme 1 }
-keccak-256-id OBJECT IDENTIFIER ::= { hash-scheme 2 }
-sha-256-id OBJECT IDENTIFIER ::= { hash-scheme 3 }
-HashSchemes TYPE-IDENTIFIER ::= {
-  {HashSha3-256 IDENTIFIED BY sha3-256-id} |
-  {HashKeccak-256 IDENTIFIED BY keccak-256-id} |
-  {HashSha-256 IDENTIFIED BY sha-256-id},
-  ...
-}
-
--- Revocation option schemes
---------------------------------------------------------------------------------
-revocation-scheme OBJECT IDENTIFIER ::= { wave-id 10 }
-commitment-revocation-id OBJECT IDENTIFIER ::= { revocation-scheme 1 }
-RevocationSchemes TYPE-IDENTIFIER ::= {
-  {CommitmentRevocationOption IDENTIFIED BY commitment-revocation-id},
-  ...
-}
-
-
--- Entity public key schemes
---------------------------------------------------------------------------------
-entity-key-scheme OBJECT IDENTIFIER ::= { wave-id 11 }
-ed25519-id OBJECT IDENTIFIER ::= { entity-key-scheme 1 }
-curve25519-id OBJECT IDENTIFIER ::= { entity-key-scheme 2 }
-oaque-bn256-s20-attributeset-id OBJECT IDENTIFIER ::= { entity-key-scheme 3 }
-oaque-bn256-s20-params-id OBJECT IDENTIFIER ::= { entity-key-scheme 4 }
-ibe-bn256-params-id OBJECT IDENTIFIER ::= { entity-key-scheme 5 }
-ibe-bn256-public-id OBJECT IDENTIFIER ::= { entity-key-scheme 6 }
-EntityKeySchemes TYPE-IDENTIFIER ::= {
-  {Public-Ed25519 IDENTIFIED BY ed25519-id} |
-  {Public-Curve25519 IDENTIFIED BY curve25519-id} |
-  {Public-OAQUE IDENTIFIED BY oaque-bn256-s20-attributeset-id} |
-  {Params-BN256-OAQUE IDENTIFIED BY oaque-bn256-s20-params-id} |
-  {Params-BN256-IBE  IDENTIFIED BY ibe-bn256-params-id} |
-  {Public-BN256-IBE IDENTIFIED BY ibe-bn256-public-id},
-  ...
-}
-
--- Policy schemes
---------------------------------------------------------------------------------
-policy-scheme OBJECT IDENTIFIER ::= { wave-id 12 }
-trust-level OBJECT IDENTIFIER ::= { policy-scheme 1 }
-resource-tree OBJECT IDENTIFIER ::= { policy-scheme 2 }
-PolicySchemes TYPE-IDENTIFIER ::= {
-  {TrustLevel IDENTIFIED BY trust-level} |
-  {RTreePolicy IDENTIFIED BY resource-tree},
-  ...
-}
-
--- Policy addendum schemes
---------------------------------------------------------------------------------
-policy-addendum-scheme OBJECT IDENTIFIER ::= { wave-id 13 }
--- this key permits the recipient to view the attribute set corresponding
--- to the partition key that would decrypt the attestation body for all
--- attestations in the same visibility domain
-wr1-domain-visibility-key OBJECT IDENTIFIER ::= { policy-addendum-scheme 1 }
--- this key permits decrypting attestations where the partition is
--- more qualified than the given key
-wr1-partition-key OBJECT IDENTIFIER ::= { policy-addendum-scheme 2 }
--- this key permits decrypting messages encrypted using OAQUE where the
--- attributeset is more qualified than the given key
-wr1-oaque-encryption-key OBJECT IDENTIFIER ::= { policy-addendum-scheme 3 }
-PolicyAddendumSchemes TYPE-IDENTIFIER ::= {
-  {EntityKeyringEntry IDENTIFIED BY wr1-domain-visibility-key} |
-  {EntityKeyringEntry IDENTIFIED BY wr1-partition-key} |
-  {EntityKeyringEntry IDENTIFIED BY wr1-oaque-encryption-key},
-  ...
-}
-
--- Entity secret key schemes
---------------------------------------------------------------------------------
-entity-secret-key-scheme OBJECT IDENTIFIER ::= { wave-id 14 }
-ed25519-secret-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 1 }
-curve25519-secret-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 2 }
-oaque-bn256-s20-private-key-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 3 }
-oaque-bn256-s20-master-key-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 4 }
-bn256-ibe-master-key-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 5 }
-bn256-ibe-private-key-id OBJECT IDENTIFIER ::= { entity-secret-key-scheme 6 }
-EntitySecretKeySchemes TYPE-IDENTIFIER ::= {
-  {Private-Ed25519 IDENTIFIED BY ed25519-secret-id} |
-  {Private-Curve25519 IDENTIFIED BY curve25519-secret-id} |
-  {Private-BN256-OAQUE IDENTIFIED BY oaque-bn256-s20-private-key-id} |
-  {Master-BN256-OAQUE IDENTIFIED BY oaque-bn256-s20-master-key-id} |
-  {Master-BN256-IBE IDENTIFIED BY bn256-ibe-master-key-id} |
-  {Private-BN256-IBE IDENTIFIED BY bn256-ibe-private-key-id},
-  ...
-}
-
--- Entity keyring schemes
---------------------------------------------------------------------------------
-entity-keyring-scheme OBJECT IDENTIFIER ::= { wave-id 15 }
-plaintext-keyring-id OBJECT IDENTIFIER ::= { entity-keyring-scheme 1 }
-aes128-gcm-pbkdf2 OBJECT IDENTIFIER ::= { entity-keyring-scheme 2 }
-EntityKeyringSchemes TYPE-IDENTIFIER ::= {
-  {EntityKeyring IDENTIFIED BY plaintext-keyring-id} |
-  {KeyringAESCiphertext IDENTIFIED BY aes128-gcm-pbkdf2},
-  ...
-}
+  MessageKeyWR1Envelope ::= SEQUENCE {
+    partition SEQUENCE OF OCTET STRING,
+    -- content: contentsKey
+    -- encryption algorithm: oaque-bn256
+    -- encryption id: partition,
+    contentsKey OCTET STRING
+  }
 
 END

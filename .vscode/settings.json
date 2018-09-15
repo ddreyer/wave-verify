@@ -84,6 +84,8 @@
         "vector": "cpp",
         "array": "cpp",
         "list": "cpp",
-        "unordered_map": "cpp"
+        "unordered_map": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp"
     }
 }

@@ -258,80 +258,16 @@ void verifyError(string errMessage) {
 //     return false;
 // }
 
-// auto unmarshal(string derEncodedData, auto decodePtr, auto pdu) {
-//     int code = 0;		/* return code */
-//     decodePtr = NULL;	/* pointer to decoded data */
-
-//     /*
-//      * Handle ASN.1/C++ runtime errors with C++ exceptions.
-//      */
-//     asn1_set_error_handling(throw_error, TRUE);
-
-//     try {
-// 	objects_Control ctl;	/* ASN.1/C++ control object */
-
-// 	try {
-// 	    EncodedBuffer encodedData;	/* encoded data */
-// 	    int encRule;	/* default encoding rules */
-
-// 	    ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-// 	    ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-//         ctl.setDebugFlags(PRINT_DECODER_OUTPUT | PRINT_DECODING_DETAILS);
-
-// 	    /*
-// 	     * Do decoding. Note that API is the same for any encoding method.
-// 	     * Get encoding rules which were specified on the ASN.1 compiler
-// 	     * command line.
-// 	     */
-// 	    encRule = ctl.getEncodingRules();
-
-// 	    /*
-// 	     * Set the decoder's input.
-// 	     */
-// 	    if (encRule == OSS_DER) {
-//             cout << "encoding rule is OSS_DER\n";
-// 		    encodedData.set_buffer(derEncodedData.length(), (char *)derEncodedData.c_str());
-// 	    } else {
-// 	    	cout << "can't find encoding rule\n";
-// 	    }
-
-// 	    /*
-// 	     * Decode the encoded PDU whose encoding is in "encodedData".
-// 	     * An exception will be thrown on any error.
-//          * Trace messages are turned on by using SOED
-// 	     */
-// 	    pdu.decode(ctl, encodedData);
-
-// 	    /*
-// 	     * Read decoded data.
-// 	     */
-// 	    decodePtr = pdu.get_data();
-// 	} catch (ASN1Exception &exc) {
-// 	    /*
-// 	     * An error occurred during decoding.
-// 	     */
-// 	    code = report_error(&ctl, "decode", exc);
-// 	}
-//     } catch (ASN1Exception &exc) {
-// 	/*
-// 	 * An error occurred during control object initialization.
-// 	 */
-// 	code = report_error(NULL, "initialization", exc);
-//     } catch (...) {
-// 	/*
-// 	 * An unexpected exception is caught.
-// 	 */
-
-
-// 	printf("Unexpected exception caught.\n");
-// 	code = -1;
-//     }
-
-//     if (code) {
-//         verifyError("failed to unmarshal");
-//     }
-//     return decodePtr;
-// }
+auto unmarshal(uint8_t *derEncodedData, size_t size, auto decodePtr, asn_TYPE_descriptor_t asnType) {
+    asn_dec_rval_t rval;
+    rval = ber_decode(0, &asnType, (void **) &decodePtr, derEncodedData, size);
+    if (rval.code != RC_OK) {
+        asnType.op->free_struct(&asnType, decodePtr, ASFM_FREE_EVERYTHING);
+        verifyError("failed to unmarshal");
+    } else {
+        return decodePtr;
+    }
+}
 
 // string marshal(auto body, auto pdu) {
 //     const char *where = "initialization";
@@ -551,42 +487,35 @@ int verify(string pemContent) {
     if (derEncodedData.length() == 0) {
     	verifyError("could not decode proof from DER format");
     }
-    asn_dec_rval_t rval;
+
     WaveWireObject_t *wwoPtr = 0;
-
-    // rval = asn_DEF_WaveWireObject.ber_decoder(0, &asn_DEF_WaveWireObject, (void **) &wwoPtr, 0);
-    // if (rval.code == RC_OK) {
-    //     return rect;
-    // } else {
-    //     asn_DEF_WaveWireObject.free_struct(&asn_DEF_WaveWireObject, wwoPtr, 0);
-    //     return 0;
-    // }
-
+    wwoPtr = unmarshal((uint8_t *) (derEncodedData.c_str()), derEncodedData.length(), wwoPtr, asn_DEF_WaveWireObject);	/* pointer to decoded data */
+    // weird that it checks as a WaveExplicitProof not WaveWireObject
+    if (asn_check_constraints(&asn_DEF_WaveExplicitProof, &wwoPtr, NULL, NULL)) {
+        verifyError("failed constraint check");
     }
-//     WaveWireObject *wwoPtr = nullptr;
-//     WaveWireObject_PDU pdu;
-//     wwoPtr = unmarshal(derEncodedData, wwoPtr, pdu);	/* pointer to decoded data */
 
-//     WaveExplicitProof *exp = wwoPtr->get_value().get_WaveExplicitProof();
-//     if (exp == nullptr) {
-//         verifyError("cannot get wave explicit proof from wave wire object");
-//     }
+    WaveExplicitProof_t *exp = 0;
+    ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+    exp = unmarshal(type.buf, type.size, exp, asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
 
-//     // parse entities
-//     WaveExplicitProof::entities ents = exp->get_entities();
-//     cout << "entities retrieved\n";
-//     list<EntityItem> entList;
-//     OssIndex entIndex = ents.first();
-//     while (entIndex != OSS_NOINDEX) {
-//         OssString *ent = ents.at(entIndex);
-//         string entStr(ent->get_buffer(), ent->length());
-//         // retrieve next entity to parse
-//         entIndex = ents.next(entIndex);
+    // parse entities
+    WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
+    cout << "entities retrieved\n";
+    list<EntityItem> entList;
+    int entIndex = 0;
+    printf("%d %d %p\n", ents.list.count, entIndex, ents.list.array[0]);
+    while (entIndex < ents.list.count) {
+        printf("%d %d %p\n", ents.list.count, entIndex, ents.list.array[0]);
 
-//         // gofunc: ParseEntity
-//         WaveWireObject *wwoPtr = nullptr;
-//         WaveWireObject_PDU pdu;
-//         wwoPtr = unmarshal(entStr, wwoPtr, pdu);
+        OCTET_STRING_t *ent = *ents.list.array;
+        // string entStr((const char *) ent->buf, ent->size);
+        // retrieve next entity to parse
+        entIndex++;
+
+        // gofunc: ParseEntity
+        // WaveWireObject_t *wwoPtr = nullptr;
+        // wwoPtr = unmarshal(ent->buf, ent->size, wwoPtr, asn_DEF_WaveWireObject);
 
 //         WaveEntity *entity = wwoPtr->get_value().get_WaveEntity();
 //         if (entity == nullptr) {
@@ -719,7 +648,7 @@ int verify(string pemContent) {
 //         }
 //         EntityItem e(entity, entStr);
 //         entList.push_back(e);
-//     }
+    }
 
 //     // retrieve attestations
 //     WaveExplicitProof::attestations atsts = exp->get_attestations();
@@ -1155,4 +1084,4 @@ int verify(string pemContent) {
 //         }
 //     }
 //     return 0;
-// }
+}

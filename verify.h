@@ -17,7 +17,7 @@
 #include <AttestationVerifierBody.h>
 #include <RTreeStatement.h>
 #include <WaveWireObject.h>
-#include <asn_codecs.h>
+#include <WaveExplicitProof.h>
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
 #include "hash-library/keccak.h"
