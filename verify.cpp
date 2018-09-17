@@ -490,10 +490,6 @@ int verify(string pemContent) {
 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = unmarshal((uint8_t *) (derEncodedData.c_str()), derEncodedData.length(), wwoPtr, asn_DEF_WaveWireObject);	/* pointer to decoded data */
-    // weird that it checks as a WaveExplicitProof not WaveWireObject
-    if (asn_check_constraints(&asn_DEF_WaveExplicitProof, &wwoPtr, NULL, NULL)) {
-        verifyError("failed constraint check");
-    }
 
     WaveExplicitProof_t *exp = 0;
     ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
@@ -501,23 +497,22 @@ int verify(string pemContent) {
 
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
+
     cout << "entities retrieved\n";
     list<EntityItem> entList;
     int entIndex = 0;
-    printf("%d %d %p\n", ents.list.count, entIndex, ents.list.array[0]);
     while (entIndex < ents.list.count) {
-        printf("%d %d %p\n", ents.list.count, entIndex, ents.list.array[0]);
-
-        OCTET_STRING_t *ent = *ents.list.array;
-        // string entStr((const char *) ent->buf, ent->size);
-        // retrieve next entity to parse
+        OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
+        string entStr((const char *) ent->buf, ent->size);
         entIndex++;
 
         // gofunc: ParseEntity
-        // WaveWireObject_t *wwoPtr = nullptr;
-        // wwoPtr = unmarshal(ent->buf, ent->size, wwoPtr, asn_DEF_WaveWireObject);
+        WaveWireObject_t *wwoPtr = nullptr;
+        wwoPtr = unmarshal(ent->buf, ent->size, wwoPtr, asn_DEF_WaveWireObject);
+        WaveEntity_t *entity = 0;
+        ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+        entity = unmarshal(type.buf, type.size, entity, asn_DEF_WaveEntity);	/* pointer to decoded data */
 
-//         WaveEntity *entity = wwoPtr->get_value().get_WaveEntity();
 //         if (entity == nullptr) {
 //             // maybe this is an entity secret
 //             WaveEntitySecret *es = wwoPtr->get_value().get_WaveEntitySecret();
@@ -526,9 +521,12 @@ int verify(string pemContent) {
 //             }
 //             entity = &(es->get_entity());
 //         }
-//         // gofunc: parseEntityFromObject
-//         // check the signature
-//         EntityPublicKey::key entKey = entity->get_tbs().get_verifyingKey().get_key();
+
+        // gofunc: parseEntityFromObject
+        // check the signature
+
+        EntityPublicKey_t entKey = entity->tbs.verifyingKey;
+        xer_fprint(stdout, &asn_DEF_EntityPublicKey, &entKey);
 //         OssEncOID entKeyId = entKey.get_type_id();
 //         if (entKeyId == ed25519_id) {
 //             Public_Ed25519 *ks = entKey.get_value().get_Public_Ed25519();
@@ -597,14 +595,14 @@ int verify(string pemContent) {
 //             verifyError("entity uses unsupported key scheme");
 //         }
 
-//         // Entity appears ok, let's unpack it further
-//         WaveEntity::tbs::keys tbsKeys = entity->get_tbs().get_keys();
-//         OssIndex tbsIndex = tbsKeys.first();
-//         while (tbsIndex != OSS_NOINDEX) {
-//             EntityPublicKey *tbsKey = tbsKeys.at(tbsIndex);
-//             // retrieve next TBS key
-//             tbsIndex = tbsKeys.next(tbsIndex);
-//             EntityPublicKey::key lkey = tbsKey->get_key();
+        // Entity appears ok, let's unpack it further
+        WaveEntity_t::WaveEntity__tbs::WaveEntity__tbs__keys tbsKeys = entity->tbs.keys;
+        int tbsIndex = 0;
+        while (tbsIndex < tbsKeys.list.count) {
+            EntityPublicKey_t *tbsKey = tbsKeys.list.array[tbsIndex];
+            tbsIndex++;
+            EXTERNAL_t lkey = tbsKey->key;
+
 //             OssEncOID lkeyId = lkey.get_type_id();
 //             if (lkeyId == ed25519_id) {
 //                 Public_Ed25519 *ks = lkey.get_value().get_Public_Ed25519();
@@ -645,32 +643,31 @@ int verify(string pemContent) {
 //             } else {
 //                 verifyError("tbs key uses unsupported key scheme");
 //             }
-//         }
-//         EntityItem e(entity, entStr);
-//         entList.push_back(e);
+        }
+        EntityItem e(entity, entStr);
+        entList.push_back(e);
     }
 
-//     // retrieve attestations
-//     WaveExplicitProof::attestations atsts = exp->get_attestations();
-//     cout << "attestations retrieved\n";
-//     vector<AttestationItem> attestationList;
-//     OssIndex attIndex = atsts.first();
-//     while (attIndex != OSS_NOINDEX) {
-//         AttestationReference *atst = atsts.at(attIndex);
-//         // retrieve next attestation to parse
-//         attIndex = atsts.next(attIndex);
+    // retrieve attestations
+    WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
+    cout << "attestations retrieved\n";
+    vector<AttestationItem> attestationList;
+    int attIndex = 0;
+    while (attIndex < atsts.list.count) {
+        AttestationReference_t *atst = atsts.list.array[attIndex];
+        attIndex++;
 
-//         AttestationReference::keys keys = atst->get_keys();
-//         char *vfk;
-//         string verifierBodyKey;
-//         string verifierBodyNonce;
-//         int vfkLen = 0;
-//         if (keys.empty()) {
-//             cout << "atst has no keys\n";
-//         }
-//         OssIndex keyIndex = keys.first();
-//         while (keyIndex != OSS_NOINDEX) {
-//             AttestationVerifierKey *key = keys.at(keyIndex);
+        AttestationReference_t::AttestationReference__keys keys = atst->keys;
+        char *vfk;
+        string verifierBodyKey;
+        string verifierBodyNonce;
+        int vfkLen = 0;
+        if (keys.list.count == 0) {
+            cout << "atst has no keys\n";
+        }
+        int keyIndex = 0;
+        while (keyIndex < keys.list.count) {
+            AttestationVerifierKey_t *key = keys.list.array[keyIndex];
 //             AttestationVerifierKeySchemes_Type vf = key->get_value();
 //             vfk = vf.get_AVKeyAES128_GCM()->get_buffer();
 //             if (vfk == nullptr) {
@@ -683,9 +680,9 @@ int verify(string pemContent) {
 //                 verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
 //                 cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
 //                 break;
-//             }
-//             keyIndex = keys.next(keyIndex);
-//         }
+            // }
+            keyIndex++;
+        }
 //         // gofunc: ParseAttestation
 //         // parse attestation
 //         AttestationReference::content *derEncodedData = atst->get_content();
@@ -882,7 +879,7 @@ int verify(string pemContent) {
 //         cout << "valid outer signature\n";
 //         AttestationItem aItem(att, decryptedBody);
 //         attestationList.push_back(aItem);
-//     }
+    }
 
 //     cout << "Finished parsing attestations\n";
 
