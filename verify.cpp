@@ -49,46 +49,6 @@ AttestationVerifierBody AttestationItem::get_body() {
 //     return intersectionResource;
 // }
 
-// ASN1Exception::ASN1Exception(int asn1_code) {
-//     code = asn1_code;
-// }
-
-// ASN1Exception::ASN1Exception(const ASN1Exception & that) {
-//     code = that.code;
-// }
-
-// int ASN1Exception::get_code() const {
-//     return code;
-// }
-
-// /*
-//  * The ASN.1/C++ error reporting function.
-//  */
-
-// void throw_error(int code) {
-//     throw ASN1Exception(code);
-// }
-
-// static int report_error(OssControl *ctl, const char *where, ASN1Exception &exc) {
-//     int code = exc.get_code();
-//     const char *msg;
-
-//     if (!code)
-// 	/* success */
-// 	return 0;
-
-//     printf("\nAn error happened\n  Error origin: %s\n  Error code: %d\n",
-// 	     where, code);
-
-//     if (ctl) {
-// 	msg = ctl->getErrorMsg();
-//     	if (msg && *msg)
-// 	    printf("  Error text: '%s'\n", msg);
-//     }
-
-//     return code;
-// }
-
 static inline bool is_base64(unsigned char c) {
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
@@ -244,19 +204,18 @@ void verifyError(string errMessage) {
 //     return lsurl;
 // }
 
-// bool HasCapability(WaveEntity *entity) {
-//     EntityPublicKey::capabilityFlags caps = 
-//         entity->get_tbs().get_verifyingKey().get_capabilityFlags();
-//     OssIndex capIndex = caps.first();
-//     while (capIndex != OSS_NOINDEX) {
-//         int *capInt = caps.at(capIndex);
-//         capIndex = caps.next(capIndex);
-//         if (*capInt == CapCertification) {
-//             return true;
-//         }
-//     }
-//     return false;
-// }
+bool HasCapability(WaveEntity_t *entity) {
+    EntityPublicKey_t::EntityPublicKey__capabilityFlags caps = entity->tbs.verifyingKey.capabilityFlags;
+    int capIndex = 0;
+    while (capIndex < caps.list.count) {
+        long capInt = *caps.list.array[capIndex];
+        if (capInt == CapCertification) {
+            return true;
+        }
+        capIndex++;
+    }
+    return false;
+}
 
 auto unmarshal(uint8_t *derEncodedData, size_t size, auto decodePtr, asn_TYPE_descriptor_t asnType) {
     asn_dec_rval_t rval;
@@ -526,23 +485,25 @@ int verify(string pemContent) {
         // check the signature
 
         EntityPublicKey_t entKey = entity->tbs.verifyingKey;
-        xer_fprint(stdout, &asn_DEF_EntityPublicKey, &entKey);
+        // xer_fprint(stdout, &asn_DEF_EXTERNAL, &entKey.key);
+        // printf("%d\n", asn_DEF_Public_Ed25519.tags);
+        // printf("%s\n", entKey.key.direct_reference->buf);
 //         OssEncOID entKeyId = entKey.get_type_id();
 //         if (entKeyId == ed25519_id) {
-//             Public_Ed25519 *ks = entKey.get_value().get_Public_Ed25519();
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             if (ks->length() != 32) {
-//                 verifyError("key length is incorrect");
-//             }
-//             // gofunc: VerifyCertify
-//             // gofunc: HasCapability
-//             if (!HasCapability(entity)) {
-//                 verifyError("this key cannot perform certifications");
-//             }
+            Public_Ed25519_t *ks = 0;
+            type = entKey.key.encoding.choice.single_ASN1_type;
+            ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Ed25519);
+            if (ks->size != 32) {
+                verifyError("key length is incorrect");
+            }
 
-//             // gofunc: Verify
+            // gofunc: VerifyCertify
+            // gofunc: HasCapability
+            if (!HasCapability(entity)) {
+                verifyError("this key cannot perform certifications");
+            }
+
+            // gofunc: Verify
 //             WaveEntityTbs_PDU pdu;
 //             string eData = marshal(entity->get_tbs(), pdu);
 
@@ -667,7 +628,9 @@ int verify(string pemContent) {
         }
         int keyIndex = 0;
         while (keyIndex < keys.list.count) {
-            AttestationVerifierKey_t *key = keys.list.array[keyIndex];
+            // AttestationVerifierKey *key = keys.list.array[keyIndex];
+            // xer_fprint(stdout, &asn_DEF_AttestationVerifierKey, key);
+            // ANY_t vf = key->encoding.choice.single_ASN1_type;
 //             AttestationVerifierKeySchemes_Type vf = key->get_value();
 //             vfk = vf.get_AVKeyAES128_GCM()->get_buffer();
 //             if (vfk == nullptr) {
@@ -683,19 +646,17 @@ int verify(string pemContent) {
             // }
             keyIndex++;
         }
-//         // gofunc: ParseAttestation
-//         // parse attestation
-//         AttestationReference::content *derEncodedData = atst->get_content();
-//         WaveWireObject *wwoPtr = nullptr;
-//         WaveWireObject_PDU pdu;
-//         wwoPtr = unmarshal(string(derEncodedData->get_buffer(), derEncodedData->length()), wwoPtr, pdu);
 
-//         WaveAttestation *att = wwoPtr->get_value().get_WaveAttestation();
-//         if (att == nullptr) {
-//             verifyError("DER is not a wave attestation");
-//         }
+        // gofunc: ParseAttestation
+        // parse attestation
+        OCTET_STRING_t *derEncodedData = atst->content;
+        WaveWireObject_t *wwoPtr = 0;
+        wwoPtr = unmarshal(derEncodedData->buf, derEncodedData->size, wwoPtr, asn_DEF_WaveWireObject);
+        WaveAttestation_t *att = 0;
+        ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+        att = unmarshal(type.buf, type.size, att, asn_DEF_WaveAttestation);	/* pointer to decoded data */
 
-//         // gofunc: DecryptBody
+        // gofunc: DecryptBody
 //         AttestationVerifierBody decryptedBody;
 //         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
 //         if (schemeID == unencrypted_body_scheme) {
