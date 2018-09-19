@@ -5,14 +5,14 @@
  * 	`asn1c -fcompound-names`
  */
 
-#ifndef	_SignedOuterKey_H_
-#define	_SignedOuterKey_H_
+#ifndef	_SignedOuterKeyTbs_H_
+#define	_SignedOuterKeyTbs_H_
 
 
 #include <asn_application.h>
 
 /* Including external dependencies */
-#include "SignedOuterKeyTbs.h"
+#include <OBJECT_IDENTIFIER.h>
 #include <OCTET_STRING.h>
 #include <constr_SEQUENCE.h>
 
@@ -20,21 +20,23 @@
 extern "C" {
 #endif
 
-/* SignedOuterKey */
-typedef struct SignedOuterKey {
-	SignedOuterKeyTbs_t	 tbs;
-	OCTET_STRING_t	 signature;
+/* SignedOuterKeyTbs */
+typedef struct SignedOuterKeyTbs {
+	OBJECT_IDENTIFIER_t	 outerSignatureScheme;
+	OCTET_STRING_t	 verifyingKey;
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
-} SignedOuterKey_t;
+} SignedOuterKeyTbs_t;
 
 /* Implementation */
-extern asn_TYPE_descriptor_t asn_DEF_SignedOuterKey;
+extern asn_TYPE_descriptor_t asn_DEF_SignedOuterKeyTbs;
+extern asn_SEQUENCE_specifics_t asn_SPC_SignedOuterKeyTbs_specs_1;
+extern asn_TYPE_member_t asn_MBR_SignedOuterKeyTbs_1[2];
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* _SignedOuterKey_H_ */
+#endif	/* _SignedOuterKeyTbs_H_ */
 #include <asn_internal.h>

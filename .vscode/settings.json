@@ -86,6 +86,8 @@
         "list": "cpp",
         "unordered_map": "cpp",
         "functional": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp"
     }
 }

@@ -12,55 +12,17 @@
 #include <asn_application.h>
 
 /* Including external dependencies */
+#include "WaveEntityTbs.h"
 #include <OCTET_STRING.h>
-#include "EntityPublicKey.h"
-#include <asn_SEQUENCE_OF.h>
-#include <constr_SEQUENCE_OF.h>
-#include <UTCTime.h>
 #include <constr_SEQUENCE.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Forward declarations */
-struct EntityPublicKey;
-struct RevocationOption;
-struct Extension;
-
 /* WaveEntity */
 typedef struct WaveEntity {
-	struct WaveEntity__tbs {
-		EntityPublicKey_t	 verifyingKey;
-		struct WaveEntity__tbs__keys {
-			A_SEQUENCE_OF(struct EntityPublicKey) list;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} keys;
-		struct WaveEntity__tbs__validity {
-			UTCTime_t	 notBefore;
-			UTCTime_t	 notAfter;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} validity;
-		struct WaveEntity__tbs__revocations {
-			A_SEQUENCE_OF(struct RevocationOption) list;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} revocations;
-		struct WaveEntity__tbs__extensions {
-			A_SEQUENCE_OF(struct Extension) list;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} extensions;
-		
-		/* Context for parsing across buffer boundaries */
-		asn_struct_ctx_t _asn_ctx;
-	} tbs;
+	WaveEntityTbs_t	 tbs;
 	OCTET_STRING_t	 signature;
 	
 	/* Context for parsing across buffer boundaries */
@@ -75,11 +37,6 @@ extern asn_TYPE_member_t asn_MBR_WaveEntity_1[2];
 #ifdef __cplusplus
 }
 #endif
-
-/* Referred external types */
-#include "EntityPublicKey.h"
-#include "RevocationOption.h"
-#include "Extension.h"
 
 #endif	/* _WaveEntity_H_ */
 #include <asn_internal.h>

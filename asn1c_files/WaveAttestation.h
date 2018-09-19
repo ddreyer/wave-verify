@@ -12,43 +12,17 @@
 #include <asn_application.h>
 
 /* Including external dependencies */
+#include "WaveAttestationTbs.h"
 #include "EXTERNAL.h"
-#include "EntityHash.h"
-#include "Location.h"
-#include <asn_SEQUENCE_OF.h>
-#include <constr_SEQUENCE_OF.h>
 #include <constr_SEQUENCE.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Forward declarations */
-struct RevocationOption;
-struct Extension;
-
 /* WaveAttestation */
 typedef struct WaveAttestation {
-	struct WaveAttestation__tbs {
-		EntityHash_t	 subject;
-		Location_t	 subjectLocation;
-		struct WaveAttestation__tbs__revocations {
-			A_SEQUENCE_OF(struct RevocationOption) list;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} revocations;
-		struct WaveAttestation__tbs__publicExtensions {
-			A_SEQUENCE_OF(struct Extension) list;
-			
-			/* Context for parsing across buffer boundaries */
-			asn_struct_ctx_t _asn_ctx;
-		} publicExtensions;
-		EXTERNAL_t	 body;
-		
-		/* Context for parsing across buffer boundaries */
-		asn_struct_ctx_t _asn_ctx;
-	} tbs;
+	WaveAttestationTbs_t	 tbs;
 	EXTERNAL_t	 outerSignature;
 	
 	/* Context for parsing across buffer boundaries */
@@ -61,10 +35,6 @@ extern asn_TYPE_descriptor_t asn_DEF_WaveAttestation;
 #ifdef __cplusplus
 }
 #endif
-
-/* Referred external types */
-#include "RevocationOption.h"
-#include "Extension.h"
 
 #endif	/* _WaveAttestation_H_ */
 #include <asn_internal.h>
