@@ -103,7 +103,6 @@ string base64_decode(string const& encoded_string) {
 string string_to_hex(const std::string& input) {
     static const char* const lut = "0123456789abcdef";
     size_t len = input.length();
-    cout << "\nlength of input: " << len << "\n";
 
     std::string output;
     output.reserve(2 * len);
@@ -121,23 +120,26 @@ void verifyError(string errMessage) {
     exit(-1);
 }
     
-// OssString * HashSchemeInstanceFor(WaveAttestation *att) {
+// OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
+        // ANY_t type = att->tbs.subject.encoding.choice.single_ASN1_type;
 //     OssEncOID subId = att->get_tbs().get_subject().get_type_id();
 //     if (subId == keccak_256_id) {
-//         HashKeccak_256 *attest = att->get_tbs().get_subject().get_value().get_HashKeccak_256();
+            // HashKeccak_256_t *attest = 0;
+            // attest = unmarshal(type.buf, type.size, attest, asn_DEF_HashKeccak_256);
 //         if (attest == nullptr) {
 //             verifyError("problem with hash");
 //         }
-//         if (attest->length() != 32) {
+//         if (attest->size != 32) {
 //             verifyError("problem with hash");
 //         }
 //         return attest;
 //     } else if (subId == sha3_256_id) {
-//         HashSha3_256 *attest = att->get_tbs().get_subject().get_value().get_HashSha3_256();
+            // HashSha3_256_t *attest = 0;
+            // attest = unmarshal(type.buf, type.size, attest, asn_DEF_HashSha3_256);
 //         if (attest == nullptr) {
 //             verifyError("problem with hash");
 //         }
-//         if (attest->length() != 32) {
+//         if (attest->size != 32) {
 //             verifyError("problem with hash");
 //         }
 //         return attest;
@@ -196,8 +198,10 @@ void verifyError(string errMessage) {
 //     }
 // }
 
-// LocationURL * LocationSchemeInstanceFor(WaveAttestation *att) {
-//     LocationURL *lsurl = att->get_tbs().get_subjectLocation().get_value().get_LocationURL();
+// LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
+//     // ANY_t type = att->tbs.subject.encoding.choice.single_ASN1_type;
+//     LocationURL_t *lsurl = 0;
+//     lsurl = unmarshal(type.buf, type.size, lsurl, asn_DEF_LocationURL);
 //     if (lsurl == nullptr) {
 //         verifyError("subject location is unsupported");
 //     }
@@ -222,67 +226,26 @@ auto unmarshal(uint8_t *derEncodedData, size_t size, auto decodePtr, asn_TYPE_de
     rval = ber_decode(0, &asnType, (void **) &decodePtr, derEncodedData, size);
     if (rval.code != RC_OK) {
         asnType.op->free_struct(&asnType, decodePtr, ASFM_FREE_EVERYTHING);
-        verifyError("failed to unmarshal");
-    } else {
-        return decodePtr;
+        decodePtr = nullptr;
     }
+    return decodePtr;
 }
 
-// string marshal(auto body, auto pdu) {
-//     const char *where = "initialization";
-//     int code = 0;
-//     EncodedBuffer eData;	/* encoded data */
-//     try {
-//         objects_Control ctl;	/* ASN.1/C++ control object */
+int write_out(const void *buffer, size_t size, void *app_key) {
+    char *out = (char *) app_key;
+    void *ret = memcpy(out, buffer, size);
+    return ret ? size : -1;
+}
 
-//         try {
-//             ossEncodingRules encRule;	/* default encoding rules */
-
-//             where = "initial settings";
-
-//             ctl.setEncodingFlags(ctl.getEncodingFlags() | DEBUGPDU | AUTOMATIC_ENCDEC);
-//             ctl.setDecodingFlags(ctl.getDecodingFlags() | DEBUGPDU);
-
-//             /*
-//             * Get the encoding rule, which is set currently.
-//             */
-//             encRule = ctl.getEncodingRules();
-
-//             /*
-//             * Set the data to the coding container.
-//             */
-//             pdu.set_data(body);
-
-//             /*
-//             * Encode the object.
-//             */
-//             printf("\nThe encoder's trace messages (only for SOED)...\n\n");
-//             where = "encoding";
-//             pdu.encode(ctl, eData);
-//             printf("\nPDU encoded successfully.\n");
-//         } catch (ASN1Exception &exc) {
-//             /*
-//             * An error occurred during decoding.
-//             */
-//             code = report_error(&ctl, where, exc);
-//         }
-//     } catch (ASN1Exception &exc) {
-//     /*
-//     * An error occurred during control object initialization.
-//     */
-//     code = report_error(NULL, where, exc);
-//     } catch (...) {
-//     /*
-//     * An unexpected exception is caught.
-//     */
-//     printf("Unexpected exception caught.\n");
-//     code = -1;
-//     }
-//     if (code) {
-//         verifyError("failed to marshal");
-//     }
-//     return string(eData.get_data(), eData.get_length());
-// }
+string marshal(auto body, asn_TYPE_descriptor_t asnType) {
+    asn_enc_rval_t rval;
+    char *buf = (char *) malloc(10000);
+    rval = der_encode(&asnType, (const void *) &body, write_out, buf);
+    if (rval.encoded == -1) {
+        verifyError("cannot marshal object");
+    }
+    return string(buf, rval.encoded);
+}
 
 // vector<string> split(string s, string delimiter) {
 //     size_t pos = 0;
@@ -449,10 +412,16 @@ int verify(string pemContent) {
 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = unmarshal((uint8_t *) (derEncodedData.c_str()), derEncodedData.length(), wwoPtr, asn_DEF_WaveWireObject);	/* pointer to decoded data */
+    if (wwoPtr == nullptr) {
+        verifyError("failed to unmarshal");
+    }
 
     WaveExplicitProof_t *exp = 0;
     ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
     exp = unmarshal(type.buf, type.size, exp, asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
+    if (exp == nullptr) {
+        verifyError("failed to unmarshal");
+    }
 
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
@@ -468,30 +437,33 @@ int verify(string pemContent) {
         // gofunc: ParseEntity
         WaveWireObject_t *wwoPtr = nullptr;
         wwoPtr = unmarshal(ent->buf, ent->size, wwoPtr, asn_DEF_WaveWireObject);
+        if (exp == nullptr) {
+            verifyError("failed to unmarshal");
+        }
+
         WaveEntity_t *entity = 0;
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         entity = unmarshal(type.buf, type.size, entity, asn_DEF_WaveEntity);	/* pointer to decoded data */
-
-//         if (entity == nullptr) {
-//             // maybe this is an entity secret
-//             WaveEntitySecret *es = wwoPtr->get_value().get_WaveEntitySecret();
-//             if (es == nullptr) {
-//                 verifyError("DER is not a wave entity");
-//             }
-//             entity = &(es->get_entity());
-//         }
+        if (entity == nullptr) {
+            // maybe this is an entity secret
+            WaveEntitySecret_t *es = 0;
+            es = unmarshal(type.buf, type.size, es, asn_DEF_WaveEntitySecret);
+            if (es == nullptr) {
+                verifyError("DER is not a wave entity");
+            }
+            entity = &(es->entity);
+        }
 
         // gofunc: parseEntityFromObject
         // check the signature
-
         EntityPublicKey_t entKey = entity->tbs.verifyingKey;
+        type = entKey.key.encoding.choice.single_ASN1_type;
         // xer_fprint(stdout, &asn_DEF_EXTERNAL, &entKey.key);
         // printf("%d\n", asn_DEF_Public_Ed25519.tags);
         // printf("%s\n", entKey.key.direct_reference->buf);
 //         OssEncOID entKeyId = entKey.get_type_id();
 //         if (entKeyId == ed25519_id) {
             Public_Ed25519_t *ks = 0;
-            type = entKey.key.encoding.choice.single_ASN1_type;
             ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Ed25519);
             if (ks->size != 32) {
                 verifyError("key length is incorrect");
@@ -504,50 +476,53 @@ int verify(string pemContent) {
             }
 
             // gofunc: Verify
-//             WaveEntityTbs_PDU pdu;
-//             string eData = marshal(entity->get_tbs(), pdu);
+            string eData = marshal(entity->tbs, asn_DEF_WaveEntityTbs);
 
-//             string entSig(entity->get_signature().get_buffer(), entity->get_signature().length());
-//             string ksStr(ks->get_buffer(), ks->length());
-//             if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-//                 (const unsigned char *) eData.c_str(), eData.length(), 
-//                 (const unsigned char *) ksStr.c_str())) {
-//                 cerr << "\nsig: " << string_to_hex(entSig);
-//                 cerr << "\nkey: " << string_to_hex(ksStr) << "\n";
-//                 string d(eData.c_str(), eData.length());
-//                 cerr << "\ndata: " << string_to_hex(d);
-//                 verifyError("entity ed25519 signature invalid");
-//             }
+            string entSig((const char *) entity->signature.buf, entity->signature.size);
+            string ksStr((const char *) ks->buf, ks->size);
+            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+                (const unsigned char *) eData.c_str(), eData.length(), 
+                (const unsigned char *) ksStr.c_str())) {
+                cerr << "\nsig: " << string_to_hex(entSig);
+                cerr << "\nkey: " << string_to_hex(ksStr);
+                cerr << "\ndata: " << string_to_hex(eData);
+                verifyError("entity ed25519 signature invalid");
+            }
 //             cout << "valid entity signature\n";
 //         } else if (entKeyId == curve25519_id) {
-//             Public_Curve25519 *ks = entKey.get_value().get_Public_Curve25519();
+            // Public_Curve25519_t *ks = 0;
+            // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Curve25519);
 //             if (ks == nullptr) {
 //                 verifyError("entity key is null");
 //             }
-//             if (ks->length() != 32) {
+//             if (ks->size != 32) {
 //                 verifyError("key length is incorrect");
 //             }
 //             verifyError("this key cannot perform certifications");
 //         } else if (entKeyId == ibe_bn256_params_id) {
-//             Params_BN256_IBE *ks = entKey.get_value().get_Params_BN256_IBE();
+                // Params_BN256_IBE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_IBE);
 //             if (ks == nullptr) {
 //                 verifyError("entity key is null");
 //             }
 //             verifyError("this key cannot perform certifications");
 //         } else if (entKeyId == ibe_bn256_public_id) {
-//             Public_BN256_IBE *ks = entKey.get_value().get_Public_BN256_IBE();
+                // Public_BN256_IBE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_BN256_IBE);
 //             if (ks == nullptr) {
 //                 verifyError("entity key is null");
 //             }
 //             verifyError("this key cannot perform certifications");
 //         } else if (entKeyId == oaque_bn256_s20_params_id) {
-//             Params_BN256_OAQUE *ks = entKey.get_value().get_Params_BN256_OAQUE();
+                // Params_BN256_OAQUE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_OAQUE);
 //             if (ks == nullptr) {
 //                 verifyError("entity key is null");
 //             }
 //             verifyError("this key cannot perform certifications");
 //         } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
-//             Public_OAQUE *ks = entKey.get_value().get_Public_OAQUE();
+                // Public_OAQUE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_OAQUE);
 //             if (ks == nullptr) {
 //                 verifyError("entity key is null");
 //             }
@@ -557,47 +532,53 @@ int verify(string pemContent) {
 //         }
 
         // Entity appears ok, let's unpack it further
-        WaveEntity_t::WaveEntity__tbs::WaveEntity__tbs__keys tbsKeys = entity->tbs.keys;
+        WaveEntityTbs_t::WaveEntityTbs__keys tbsKeys = entity->tbs.keys;
         int tbsIndex = 0;
         while (tbsIndex < tbsKeys.list.count) {
             EntityPublicKey_t *tbsKey = tbsKeys.list.array[tbsIndex];
             tbsIndex++;
             EXTERNAL_t lkey = tbsKey->key;
-
+            ANY_t type = lkey.encoding.choice.single_ASN1_type;
 //             OssEncOID lkeyId = lkey.get_type_id();
 //             if (lkeyId == ed25519_id) {
-//                 Public_Ed25519 *ks = lkey.get_value().get_Public_Ed25519();
+                // Public_Ed25519_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Ed25519);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
-//                 if (ks->length() != 32) {
+//                 if (ks->size != 32) {
 //                     verifyError("key length is incorrect");
 //                 }
 //             } else if (lkeyId == curve25519_id) {
-//                 Public_Curve25519 *ks = lkey.get_value().get_Public_Curve25519();
+                // Public_Curve25519_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Curve25519);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
-//                 if (ks->length() != 32) {
+//                 if (ks->size != 32) {
 //                     verifyError("key length is incorrect");
 //                 }
 //             } else if (lkeyId == ibe_bn256_params_id) {
-//                 Params_BN256_IBE *ks = lkey.get_value().get_Params_BN256_IBE();
+                // Params_BN256_IBE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_IBE);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
 //             } else if (lkeyId == ibe_bn256_public_id) {
-//                 Public_BN256_IBE *ks = lkey.get_value().get_Public_BN256_IBE();
+                // Public_BN256_IBE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_BN256_IBE);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
 //             } else if (lkeyId == oaque_bn256_s20_params_id) {
-//                 Params_BN256_OAQUE *ks = lkey.get_value().get_Params_BN256_OAQUE();
+                // Params_BN256_OAQUE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_OAQUE);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
 //             } else if (lkeyId == oaque_bn256_s20_attributeset_id) {
-//                 Public_OAQUE *ks = lkey.get_value().get_Public_OAQUE();
+                // Public_OAQUE_t *ks = 0;
+                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_OAQUE);
 //                 if (ks == nullptr) {
 //                     verifyError("tbs key is null");
 //                 }
@@ -626,24 +607,28 @@ int verify(string pemContent) {
         if (keys.list.count == 0) {
             cout << "atst has no keys\n";
         }
+
         int keyIndex = 0;
         while (keyIndex < keys.list.count) {
-            // AttestationVerifierKey *key = keys.list.array[keyIndex];
-            // xer_fprint(stdout, &asn_DEF_AttestationVerifierKey, key);
-            // ANY_t vf = key->encoding.choice.single_ASN1_type;
-//             AttestationVerifierKeySchemes_Type vf = key->get_value();
-//             vfk = vf.get_AVKeyAES128_GCM()->get_buffer();
-//             if (vfk == nullptr) {
-//                 cout << "atst key was not aes\n";
-//             } else {
-//                 vfkLen = vf.get_AVKeyAES128_GCM()->length();
-//                 cout << "got atst key of length " << vfkLen << "\n";
-//                 string verifierKey(vfk, vfk + vfkLen);
-//                 verifierBodyKey = verifierKey.substr(0, 16);
-//                 verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
-//                 cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
-//                 break;
-            // }
+            /* casting is needed due to some weirdness with the asn1c compiler
+             * https://github.com/vlm/asn1c/issues/296
+             */
+            AttestationVerifierKey_t *key = (AttestationVerifierKey_t *) keys.list.array[keyIndex];
+            ANY_t type = key->encoding.choice.single_ASN1_type;
+            AVKeyAES128_GCM_t *vfk = 0;
+            vfk = unmarshal(type.buf, type.size, vfk, asn_DEF_AVKeyAES128_GCM);
+            int vfkLen = 0;
+            if (vfk == nullptr) {
+                cout << "atst key was not aes\n";
+            } else {
+                vfkLen = vfk->size;
+                cout << "got atst key of length " << vfkLen << "\n";
+                string verifierKey(vfk->buf, vfk->buf + vfkLen);
+                verifierBodyKey = verifierKey.substr(0, 16);
+                verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
+                cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
+                break;
+            }
             keyIndex++;
         }
 
@@ -655,24 +640,27 @@ int verify(string pemContent) {
         WaveAttestation_t *att = 0;
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         att = unmarshal(type.buf, type.size, att, asn_DEF_WaveAttestation);	/* pointer to decoded data */
+        // xer_fprint(stdout, &asn_DEF_WaveAttestation, att);
 
         // gofunc: DecryptBody
-//         AttestationVerifierBody decryptedBody;
+        AttestationVerifierBody_t *decryptedBody;
 //         OssEncOID schemeID = att->get_tbs().get_body().get_type_id();
 //         if (schemeID == unencrypted_body_scheme) {
 //             cout << "unencrypted body scheme, currently not supported\n";
 //         } else if (schemeID == wr1_body_scheme_v1) {
-//             cout << "wr1 body scheme\n";
-//             // decrypt body
-//             WR1BodyCiphertext *wr1body = att->get_tbs().get_body()
-//                     .get_value().get_WR1BodyCiphertext();
-//             cout << "got wr1 body\n";
-//             if (wr1body == nullptr) {
-//                 verifyError("getting body ciphertext failed");
-//             }
+            cout << "this is a wr1 body scheme\n";
+            // decrypt body
+            type = att->tbs.body.encoding.choice.single_ASN1_type;
 
-//             // checking subject HI instance
-//             HashSchemeInstanceFor(att);
+            printf("%d\n", type.size);
+            WR1BodyCiphertext_t *wr1body = 0;
+            wr1body = unmarshal(type.buf, type.size, wr1body, asn_DEF_WR1BodyCiphertext);
+            if (wr1body == nullptr) {
+                verifyError("getting body ciphertext failed");
+            }
+            cout << "got wr1 body\n";
+            // checking subject HI instance
+            // HashSchemeInstanceFor(att);
             
 //             // check subject location scheme
 //             LocationSchemeInstanceFor(att);
