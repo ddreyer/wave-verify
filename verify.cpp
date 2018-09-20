@@ -5,6 +5,10 @@ const int PermittedCombinedStatements = 1000;
 
 using namespace std;
 
+const string WaveObjectIdentifier("1.3.6.1.4.1.51157");
+const string EntityKeyScheme("11");
+const string Ed25519Id("1");
+
 EntityItem::EntityItem(WaveEntity *ent, string entDer) {
     entity = ent;
     entityDer = entDer;
@@ -231,21 +235,90 @@ auto unmarshal(uint8_t *derEncodedData, size_t size, auto decodePtr, asn_TYPE_de
     return decodePtr;
 }
 
-int write_out(const void *buffer, size_t size, void *app_key) {
-    char *out = (char *) app_key;
-    void *ret = memcpy(out, buffer, size);
-    return ret ? size : -1;
+/* Following is from here: https://stackoverflow.com/questions/11075886/encode-xer-to-buffer-with-asn1c
+ * except I fixed a bug (sigh) in the callback by adding a return 1;
+ */
+typedef struct xer_buffer {
+    uint8_t *buffer;
+    size_t buffer_size;
+    size_t buffer_filled;
+} xer_buffer_t;
+
+void init_xer_buffer(xer_buffer_t* xer_buffer) {
+    xer_buffer->buffer = (uint8_t *) malloc(1024);
+    assert(xer_buffer->buffer != NULL);
+    xer_buffer->buffer_size = 1024;
+    xer_buffer->buffer_filled = 0;
 }
 
-string marshal(auto body, asn_TYPE_descriptor_t asnType) {
-    asn_enc_rval_t rval;
-    char *buf = (char *) malloc(10000);
-    rval = der_encode(&asnType, (const void *) &body, write_out, buf);
-    if (rval.encoded == -1) {
-        verifyError("cannot marshal object");
-    }
-    return string(buf, rval.encoded);
+void free_xer_buffer(xer_buffer_t* xer_buffer) {
+    free(xer_buffer->buffer);
+    xer_buffer->buffer_size = 0;
+    xer_buffer->buffer_filled = 0;
 }
+
+static int xer_print2xerbuf_cb(const void *buffer, size_t size, void *app_key) {
+    xer_buffer_t* xb = (xer_buffer_t*) app_key;
+    while (xb->buffer_size - xb->buffer_filled <= size+1) {
+        xb->buffer_size *= 2;
+        xb->buffer_size += 1;
+        xb->buffer = (uint8_t *) realloc(xb->buffer, xb->buffer_size);
+        assert(xb->buffer != NULL);
+    }
+    memcpy(xb->buffer+xb->buffer_filled, buffer, size);
+    xb->buffer_filled += size;
+    *(xb->buffer+xb->buffer_filled) = '\0';
+    return 1;
+}
+
+int xer_encode_to_buffer(xer_buffer_t* xb, asn_TYPE_descriptor_t *td, void *sptr) {
+    asn_enc_rval_t er;
+    if (!td || !sptr) return -1;
+    er = td->op->xer_encoder(td, sptr, 1, XER_F_BASIC, xer_print2xerbuf_cb, xb);
+    if (er.encoded == -1) return -1;
+    return 0;
+}
+
+/* joins type id substrings together */
+string idJoiner(string s1, string s2, string s3) {
+    return s1 + "." + s2 + "." + s3;
+}
+
+/* takes in an asn type descriptor and returns the object identifier as an
+ * XER encoded string for the type 
+ */
+string getTypeId(asn_TYPE_descriptor_t *td) {
+    /* WaveObjectIdentifier is the base string */
+    if (td == &asn_DEF_Public_Ed25519) {
+        return idJoiner(WaveObjectIdentifier, EntityKeyScheme, Ed25519Id);
+    } else {
+        verifyError("Could not find a match for a type id");
+    }
+}
+
+/* takes in an ObjectIdentifier_t struct and returns the object identifier as an 
+ * XER encoded string for the type
+ * I must admit it is sort of a hacky solution to compare object identifiers as strings
+ */
+string constructTypeId(OBJECT_IDENTIFIER_t *direct_ref) {
+    xer_buffer_t *xer_buf = (xer_buffer_t *) malloc(sizeof(xer_buffer_t));
+    init_xer_buffer(xer_buf);
+    xer_encode_to_buffer(xer_buf, &asn_DEF_OBJECT_IDENTIFIER, direct_ref);
+    string enc((char *) xer_buf->buffer);
+    free_xer_buffer(xer_buf);
+    free(xer_buf);
+    return enc;
+}
+
+// string marshal(auto body, asn_TYPE_descriptor_t asnType) {
+//     asn_enc_rval_t rval;
+//     char *buf = (char *) malloc(10000);
+//     rval = der_encode(&asnType, (const void *) &body, write_out, buf);
+//     if (rval.encoded == -1) {
+//         verifyError("cannot marshal object");
+//     }
+//     return string(buf, rval.encoded);
+// }
 
 // vector<string> split(string s, string delimiter) {
 //     size_t pos = 0;
@@ -458,11 +531,10 @@ int verify(string pemContent) {
         // check the signature
         EntityPublicKey_t entKey = entity->tbs.verifyingKey;
         type = entKey.key.encoding.choice.single_ASN1_type;
-        // xer_fprint(stdout, &asn_DEF_EXTERNAL, &entKey.key);
-        // printf("%d\n", asn_DEF_Public_Ed25519.tags);
-        // printf("%s\n", entKey.key.direct_reference->buf);
-//         OssEncOID entKeyId = entKey.get_type_id();
-//         if (entKeyId == ed25519_id) {
+        // cout << "external type size " << entKey.key.direct_reference->size << "\n";
+        string entKeyId = constructTypeId(entKey.key.direct_reference);
+
+        if (entKeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
             Public_Ed25519_t *ks = 0;
             ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Ed25519);
             if (ks->size != 32) {
@@ -476,60 +548,60 @@ int verify(string pemContent) {
             }
 
             // gofunc: Verify
-            string eData = marshal(entity->tbs, asn_DEF_WaveEntityTbs);
+            // string eData = marshal(entity->tbs, asn_DEF_WaveEntityTbs);
 
-            string entSig((const char *) entity->signature.buf, entity->signature.size);
-            string ksStr((const char *) ks->buf, ks->size);
-            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-                (const unsigned char *) eData.c_str(), eData.length(), 
-                (const unsigned char *) ksStr.c_str())) {
-                cerr << "\nsig: " << string_to_hex(entSig);
-                cerr << "\nkey: " << string_to_hex(ksStr);
-                cerr << "\ndata: " << string_to_hex(eData);
-                verifyError("entity ed25519 signature invalid");
-            }
+            // string entSig((const char *) entity->signature.buf, entity->signature.size);
+            // string ksStr((const char *) ks->buf, ks->size);
+            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+            //     (const unsigned char *) eData.c_str(), eData.length(), 
+            //     (const unsigned char *) ksStr.c_str())) {
+            //     cerr << "\nsig: " << string_to_hex(entSig);
+            //     cerr << "\nkey: " << string_to_hex(ksStr);
+            //     cerr << "\ndata: " << string_to_hex(eData);
+            //     verifyError("entity ed25519 signature invalid");
+            // }
 //             cout << "valid entity signature\n";
-//         } else if (entKeyId == curve25519_id) {
-            // Public_Curve25519_t *ks = 0;
-            // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Curve25519);
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             if (ks->size != 32) {
-//                 verifyError("key length is incorrect");
-//             }
-//             verifyError("this key cannot perform certifications");
-//         } else if (entKeyId == ibe_bn256_params_id) {
-                // Params_BN256_IBE_t *ks = 0;
-                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_IBE);
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             verifyError("this key cannot perform certifications");
-//         } else if (entKeyId == ibe_bn256_public_id) {
-                // Public_BN256_IBE_t *ks = 0;
-                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_BN256_IBE);
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             verifyError("this key cannot perform certifications");
-//         } else if (entKeyId == oaque_bn256_s20_params_id) {
-                // Params_BN256_OAQUE_t *ks = 0;
-                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_OAQUE);
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             verifyError("this key cannot perform certifications");
-//         } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
-                // Public_OAQUE_t *ks = 0;
-                // ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_OAQUE);
-//             if (ks == nullptr) {
-//                 verifyError("entity key is null");
-//             }
-//             verifyError("this key cannot perform certifications");
-//         } else {
-//             verifyError("entity uses unsupported key scheme");
-//         }
+        // } else if (entKeyId == curve25519_id) {
+        //     Public_Curve25519_t *ks = 0;
+        //     ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_Curve25519);
+        //     if (ks == nullptr) {
+        //         verifyError("entity key is null");
+        //     }
+        //     if (ks->size != 32) {
+        //         verifyError("key length is incorrect");
+        //     }
+        //     verifyError("this key cannot perform certifications");
+        // } else if (entKeyId == ibe_bn256_params_id) {
+        //         Params_BN256_IBE_t *ks = 0;
+        //         ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_IBE);
+        //     if (ks == nullptr) {
+        //         verifyError("entity key is null");
+        //     }
+        //     verifyError("this key cannot perform certifications");
+        // } else if (entKeyId == ibe_bn256_public_id) {
+        //         Public_BN256_IBE_t *ks = 0;
+        //         ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_BN256_IBE);
+        //     if (ks == nullptr) {
+        //         verifyError("entity key is null");
+        //     }
+        //     verifyError("this key cannot perform certifications");
+        // } else if (entKeyId == oaque_bn256_s20_params_id) {
+        //         Params_BN256_OAQUE_t *ks = 0;
+        //         ks = unmarshal(type.buf, type.size, ks, asn_DEF_Params_BN256_OAQUE);
+        //     if (ks == nullptr) {
+        //         verifyError("entity key is null");
+        //     }
+        //     verifyError("this key cannot perform certifications");
+        // } else if (entKeyId == oaque_bn256_s20_attributeset_id) {
+        //         Public_OAQUE_t *ks = 0;
+        //         ks = unmarshal(type.buf, type.size, ks, asn_DEF_Public_OAQUE);
+        //     if (ks == nullptr) {
+        //         verifyError("entity key is null");
+        //     }
+        //     verifyError("this key cannot perform certifications");
+        } else {
+            verifyError("entity uses unsupported key scheme");
+        }
 
         // Entity appears ok, let's unpack it further
         WaveEntityTbs_t::WaveEntityTbs__keys tbsKeys = entity->tbs.keys;
