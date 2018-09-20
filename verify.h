@@ -21,6 +21,11 @@
 #include <WaveWireObject.h>
 #include <WaveExplicitProof.h>
 #include <Public-Ed25519.h>
+#include <Public-Curve25519.h>
+#include <Params-BN256-IBE.h>
+#include <Params-BN256-OAQUE.h>
+#include <Public-BN256-IBE.h>
+#include <Public-OAQUE.h>
 #include <AVKeyAES128-GCM.h>
 #include <WR1BodyCiphertext.h>
 
