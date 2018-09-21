@@ -55,11 +55,11 @@ public:
 class AttestationItem {
 private:
     WaveAttestation_t *attestation;
-    AttestationVerifierBody_t decryptedBody;
+    AttestationVerifierBody_t *decryptedBody;
 public:
-    AttestationItem(WaveAttestation_t *att, AttestationVerifierBody_t dBody);
+    AttestationItem(WaveAttestation_t *att, AttestationVerifierBody_t *dBody);
     WaveAttestation_t * get_att();
-    AttestationVerifierBody_t get_body();
+    AttestationVerifierBody_t * get_body();
 };
 
 // class RTreeStatementItem {

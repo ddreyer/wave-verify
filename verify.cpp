@@ -22,12 +22,12 @@ const string Keccak256Id("2");
 const string OuterSignatureScheme("5");
 const string EphemeralEd25519("1");
 
-EntityItem::EntityItem(WaveEntity *ent, string entDer) {
+EntityItem::EntityItem(WaveEntity_t *ent, string entDer) {
     entity = ent;
     entityDer = entDer;
 }
 
-WaveEntity * EntityItem::get_entity() {
+WaveEntity_t * EntityItem::get_entity() {
     return entity;
 }
 
@@ -35,16 +35,16 @@ string EntityItem::get_der() {
     return entityDer;
 }
 
-AttestationItem::AttestationItem(WaveAttestation *att, AttestationVerifierBody dBody) {
+AttestationItem::AttestationItem(WaveAttestation_t *att, AttestationVerifierBody_t *dBody) {
     attestation = att;
     decryptedBody = dBody;
 }
 
-WaveAttestation * AttestationItem::get_att() {
+WaveAttestation_t * AttestationItem::get_att() {
     return attestation;
 }
     
-AttestationVerifierBody AttestationItem::get_body() {
+AttestationVerifierBody_t * AttestationItem::get_body() {
     return decryptedBody;
 }
 
@@ -908,21 +908,21 @@ int verify(string pemContent) {
         }
         // check signature
         // gofunc: VerifySignature
-        // string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
+        string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
 
-        // OCTET_STRING_t vKey = osig->verifyingKey;
-        // OCTET_STRING_t sig = osig->signature;
-        // string s((const char *) sig.buf, sig.size);
-        // string v((const char *) vKey.buf, vKey.size);
-        // /* verify the signature */
+        OCTET_STRING_t vKey = osig->verifyingKey;
+        OCTET_STRING_t sig = osig->signature;
+        string s((const char *) sig.buf, sig.size);
+        string v((const char *) vKey.buf, vKey.size);
+        /* verify the signature */
         // if (!ed25519_verify((const unsigned char *) s.c_str(), 
         //         (const unsigned char *) encData.c_str(), encData.length(), 
         //         (const unsigned char *) v.c_str())) {
         //     verifyError("invalid outer signature");
         // }
         // cout << "valid outer signature\n";
-        // AttestationItem aItem(att, decryptedBody);
-        // attestationList.push_back(aItem);
+        AttestationItem aItem(att, decryptedBody);
+        attestationList.push_back(aItem);
     }
 
     cout << "Finished parsing attestations\n";
@@ -930,27 +930,27 @@ int verify(string pemContent) {
     // now verify the paths
     // vector<RTreePolicy> pathpolicies;
     // vector<OssString *> pathEndEntities;
-    // WaveExplicitProof::paths paths = exp->paths;
-    // cout << "paths retrieved\n";
-//     OssIndex pathIndex = paths.first();
-//     while (pathIndex != OSS_NOINDEX) {
-//         WaveExplicitProof::paths::component *p = paths.at(pathIndex);
-//         pathIndex = paths.next(pathIndex);
-//         OssIndex pIndex = p->first();
-//         // len(path) == 0
-//         if (pIndex == OSS_NOINDEX) {
-//             verifyError("path of length 0");
-//         }
-//         // path[0]
-//         int *pathNum = p->at(pIndex);
-//         pIndex = p->next(pIndex);
-//         try {
-//             attestationList.at(*pathNum); 
-//         } catch (...) {
-//             verifyError("proof refers to non-included attestation");
-//         }
+    WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
+    cout << "paths retrieved\n";
+    int pathIndex = 0;
+    while (pathIndex < paths.list.count) {
+        WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
+        pathIndex++;
+        int pIndex = 0;
+        // len(path) == 0
+        if (p->list.count == 0) {
+            verifyError("path of length 0");
+        }
+        // path[0]
+        long *pathNum = p->list.array[pIndex];
+        pIndex++;
+        // try {
+        //     attestationList.at(*pathNum); 
+        // } catch (...) {
+        //     verifyError("proof refers to non-included attestation");
+        // }
 
-//         AttestationItem currAttItem = attestationList.at(*pathNum);
+        // AttestationItem currAttItem = attestationList.at(*pathNum);
 //         WaveAttestation *currAtt = currAttItem.get_att();
 //         // gofunc: Subject
 //         OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
@@ -1092,7 +1092,7 @@ int verify(string pemContent) {
 //         pathpolicies.push_back(*policy);
 //         pathEndEntities.push_back(cursubj);
 //         LocationURL *subjectLocation = cursubloc;
-//     }
+    }
 //     // Now combine the policies together
 //     RTreePolicy aggregatepolicy = pathpolicies[0];
 //     OssString *finalsubject = pathEndEntities[0];
