@@ -19,6 +19,8 @@ const string WR1BodySchemeV1("2");
 const string HashScheme("9");
 const string Sha3256Id("1");
 const string Keccak256Id("2");
+const string OuterSignatureScheme("5");
+const string EphemeralEd25519("1");
 
 EntityItem::EntityItem(WaveEntity *ent, string entDer) {
     entity = ent;
@@ -241,6 +243,8 @@ string getTypeId(asn_TYPE_descriptor_t *td) {
         return idJoiner(HashScheme, Keccak256Id);
     } else if (td == &asn_DEF_HashSha3_256) {
         return idJoiner(HashScheme, Sha3256Id);
+    } else if (td == &asn_DEF_Ed25519OuterSignature) {
+        return idJoiner(OuterSignatureScheme, EphemeralEd25519);
     } else {
         verifyError("Could not find a match for a type id");
     }
@@ -512,8 +516,6 @@ int verify(string pemContent) {
         verifyError("failed to unmarshal");
     }
 
-    // investigate asn_check_constraint segfault
-
     WaveExplicitProof_t *exp = 0;
     ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
     exp = unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
@@ -718,11 +720,9 @@ int verify(string pemContent) {
                 cout << "atst key was not aes\n";
             } else {
                 vfkLen = vfk->size;
-                cout << "got atst key of length " << vfkLen << "\n";
                 string verifierKey(vfk->buf, vfk->buf + vfkLen);
                 verifierBodyKey = verifierKey.substr(0, 16);
                 verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
-                cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
                 break;
             }
             keyIndex++;
@@ -752,7 +752,7 @@ int verify(string pemContent) {
             cout << "this is a wr1 body scheme\n";
             // decrypt body
             type = att->tbs.body.encoding.choice.single_ASN1_type;
-            WR1BodyCiphertext *wr1body = 0;
+            WR1BodyCiphertext_t *wr1body = 0;
             wr1body = unmarshal(type.buf, type.size, wr1body, &asn_DEF_WR1BodyCiphertext);
             if (wr1body == nullptr) {
                 verifyError("getting body ciphertext failed");
@@ -761,179 +761,177 @@ int verify(string pemContent) {
             // checking subject HI instance
             HashSchemeInstanceFor(att);
 
-            // if (vfk) {
-            //     cout << "decrypting attestation\n";
-            //     mbedtls_gcm_context ctx;
-            //     mbedtls_gcm_init( &ctx );
-            //     int ret = 0;
-            //     ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
-            //         (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
-            //     if (ret) {
-            //         verifyError("aes set key failed");
-            //     }
+            if (vfk) {
+                cout << "decrypting attestation\n";
+                mbedtls_gcm_context ctx;
+                mbedtls_gcm_init( &ctx );
+                int ret = 0;
+                ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
+                    (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
+                if (ret) {
+                    verifyError("aes set key failed");
+                }
         
-//                 WR1BodyCiphertext::verifierBodyCiphertext vbodyCipher = wr1body->get_verifierBodyCiphertext();
-//                 const unsigned char additional[] = {};
-//                 int bodyLen = vbodyCipher.length();
-//                 unsigned char verifierBodyDER[bodyLen];
-//                 unsigned char tag_buf[16];
+                OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
+                const unsigned char additional[] = {};
+                int bodyLen = vbodyCipher.size;
+                unsigned char verifierBodyDER[bodyLen];
+                unsigned char tag_buf[16];
                 
-//                 cout << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
-//                 char *temp = vbodyCipher.get_buffer();
-//                 string s(temp, bodyLen);
-//                 string t(verifierBodyNonce.c_str(), 12);
-//                 cout << "ciphertext:\n" << string_to_hex(s) << "\n\n";
-//                 cout << "nonce:\n" << string_to_hex(t) << "\n\n";
-//                 ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
-//                     verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
-//                 if (ret) {
-//                     verifyError("aes decrypt failed");
-//                 } else {
-//                     unsigned char *hah = verifierBodyDER;
-//                     string v((const char *)hah, bodyLen-16);
-//                     cout << "object:\n" << string_to_hex(v) << "\n\n";
-//                     cout << "decryption succeeded\n";
-//                 }
-//                 mbedtls_gcm_free(&ctx);
+                string s((const char *) vbodyCipher.buf, bodyLen);
+                string t(verifierBodyNonce.c_str(), 12);
+                ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
+                    verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
+                if (ret) {
+                    cerr << "ciphertext:\n" << string_to_hex(s) << "\n\n";
+                    cerr << "nonce:\n" << string_to_hex(t) << "\n\n";
+                    cerr << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
+                    verifyError("aes decryption failed");
+                } else {
+                    unsigned char *hah = verifierBodyDER;
+                    string v((const char *)hah, bodyLen-16);
+                    cout << "aes decryption succeeded\n";
+                }
+                mbedtls_gcm_free(&ctx);
 
-//                 //unmarshal into WR1VerifierBody
-//                 char *vBodyPtr = (char *) verifierBodyDER;
-//                 WR1VerifierBody *vbody = nullptr;
-//                 WR1VerifierBody_PDU pdu;
-//                 vbody = unmarshal(string(vBodyPtr, bodyLen-16), vbody, pdu);
-        
-//                 decryptedBody = vbody->get_attestationVerifierBody();
-//                 delete vbody;
-            // }
+                //unmarshal into WR1VerifierBody
+                WR1VerifierBody_t *vbody = 0;
+                vbody = unmarshal((uint8_t *) verifierBodyDER, bodyLen-16, vbody, &asn_DEF_WR1VerifierBody);
+                if (vbody == nullptr) {
+                    verifyError("could not unmarshal into WR1VerifierBody");
+                }        
+                decryptedBody = &vbody->attestationVerifierBody;
+            }
         } else {
             verifyError("unsupported body scheme");
         }
 
-//         LocationURL *attesterLoc = 
-//             decryptedBody.get_attesterLocation().get_value().get_LocationURL();
-//         if (attesterLoc == nullptr) {
-//             verifyError("could not get attester loc");
-//         }
+        LocationURL_t *attesterLoc = 0;
+        type = decryptedBody->attesterLocation.encoding.choice.single_ASN1_type;
+        attesterLoc = unmarshal(type.buf, type.size, attesterLoc, &asn_DEF_LocationURL);
+        if (attesterLoc == nullptr) {
+            verifyError("could not get attester loc");
+        }
 
-//         OssEncOID attestId = decryptedBody.get_attester().get_type_id();
-//         WaveEntity *attester = nullptr;
-//         // gofunc: EntityByHashLoc
-//         if (attestId == keccak_256_id) {
-//             HashKeccak_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashKeccak_256();
-//             if (attesterHash == nullptr) {
-//                 verifyError("could not get attester hash");
-//             }
-//             if (attesterHash->length() != 32) {
-//                 verifyError("attester hash not valid");
-//             }
-//             // convert attestation hash to hex
-//             string attesterHashStr(attesterHash->get_buffer(), attesterHash->length());
-//             string attHashHex = string_to_hex(attesterHashStr);
-//             // loop through entities
-//             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
-//                 Keccak k(Keccak::Keccak256);
-//                 string entityHash = k(it->get_der());
-//                 cout << "\natt hash: " << attHashHex;
-//                 cout << "\nentity hash: " << entityHash;
-//                 if (strcmp(attHashHex.c_str(), entityHash.c_str()) == 0) {
-//                     cout << "\nfound matching entity for attester\n";
-//                     attester = it->get_entity();
-//                     break;
-//                 }
-//             }
-//         } else if (attestId == sha3_256_id) {
-//             HashSha3_256 *attesterHash = decryptedBody.get_attester().get_value().get_HashSha3_256();
-//             if (attesterHash == nullptr) {
-//                 verifyError("could not get attester hash");
-//             }
-//             if (attesterHash->length() != 32) {
-//                 verifyError("attester hash not valid");
-//             }
-//         } else {
-//             verifyError("unsupported attester hash scheme id");
-//         }
+        WaveEntity_t *attester = 0;
+        string attestId = marshal(decryptedBody->attester.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+        type = decryptedBody->attester.encoding.choice.single_ASN1_type;
+        // gofunc: EntityByHashLoc
+        if (attestId == getTypeId(&asn_DEF_HashKeccak_256)) {
+            HashKeccak_256_t *attesterHash = 0;
+            attesterHash = unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashKeccak_256);
+            if (attesterHash == nullptr) {
+                verifyError("could not get attester hash");
+            }
+            if (attesterHash->size != 32) {
+                verifyError("attester hash not valid");
+            }
+            // convert attestation hash to hex
+            string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
+            string attHashHex = string_to_hex(attesterHashStr);
+            // loop through entities
+            for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
+                Keccak k(Keccak::Keccak256);
+                string entityHash = k(it->get_der());
+                cout << "\natt hash: " << attHashHex;
+                cout << "\nentity hash: " << entityHash;
+                if (attHashHex == entityHash) {
+                    cout << "\nfound matching entity for attester\n";
+                    attester = it->get_entity();
+                    break;
+                }
+            }
+        } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
+            HashSha3_256_t *attesterHash = 0;
+            attesterHash = unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
+            if (attesterHash == nullptr) {
+                verifyError("could not get attester hash");
+            }
+            if (attesterHash->size != 32) {
+                verifyError("attester hash not valid");
+            }
+        } else {
+            verifyError("unsupported attester hash scheme id");
+        }
 
-//         SignedOuterKey *_ = decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
-//         if (_ == nullptr) {
-//             verifyError("outer signature binding not supported");
-//         }
-//         // gofunc: VerifyBinding
-//         // At this time we only know how to extract the key from an ed25519 outer signature
-//         Ed25519OuterSignature *osig = att->get_outerSignature().get_value().get_Ed25519OuterSignature();
-//         if (osig == nullptr) {
-//             verifyError("unknown outer signature type/signature scheme not supported");
-//         }
+        SignedOuterKey_t *binding = 0;
+        type = decryptedBody->outerSignatureBinding.encoding.choice.single_ASN1_type;
+        binding = unmarshal(type.buf, type.size, binding, &asn_DEF_SignedOuterKey);
+        if (binding == nullptr) {
+            verifyError("outer signature binding not supported/this is not really a signed outer key");
+        }
 
-//         SignedOuterKey *binding = 
-//             decryptedBody.get_outerSignatureBinding().get_value().get_SignedOuterKey();
-//         if (binding == nullptr) {
-//             verifyError("this is not really a signed outer key");
-//             return -1;
-//         }
+        // gofunc: VerifyBinding
+        // At this time we only know how to extract the key from an ed25519 outer signature
+        Ed25519OuterSignature_t *osig = 0;
+        type = att->outerSignature.encoding.choice.single_ASN1_type;
+        osig = unmarshal(type.buf, type.size, osig, &asn_DEF_Ed25519OuterSignature);
+        if (osig == nullptr) {
+            verifyError("unknown outer signature type/signature scheme not supported");
+        }
 
-//         if (attester == nullptr) {
-//             verifyError("no attester");
-//         }
+        if (attester == nullptr) {
+            verifyError("no attester");
+        }
 
-//         // gofunc: VerifyCertify
-//         // gofunc: HasCapability
-//         if (!HasCapability(attester)) {
-//             verifyError("this key cannot perform certifications");
-//         }
+        // gofunc: VerifyCertify
+        // gofunc: HasCapability
+        if (!HasCapability(attester)) {
+            verifyError("this key cannot perform certifications");
+        }
 
-//         // gofunc: Verify
-//         SignedOuterKeyTbs_PDU keypdu;		/* coding container for binding TBS value */
-//         string encodedData = marshal(binding->get_tbs(), keypdu);
+        // gofunc: Verify
+        string encodedData = marshal(&binding->tbs, &asn_DEF_SignedOuterKeyTbs);
 
-//         Public_Ed25519 *attesterKey = 
-//             attester->get_tbs().get_verifyingKey().get_key().get_value().get_Public_Ed25519();
-//         string bindingSig(binding->get_signature().get_buffer(), binding->get_signature().length());
-//         string attKey(attesterKey->get_buffer(), attesterKey->length());
-//         if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
-//             (const unsigned char *) encodedData.c_str(), encodedData.length(), 
-//             (const unsigned char *) attKey.c_str())) {
-//             cerr << "signature: " << string_to_hex(bindingSig);
-//             cerr << "\nkey: " << string_to_hex(attKey) << "\n";
-//             verifyError("outer signature binding invalid");
-//         }
-//         cout << "valid outer signature binding\n";
+        Public_Ed25519_t *attesterKey = 0;
+        type = attester->tbs.verifyingKey.key.encoding.choice.single_ASN1_type;
+        attesterKey = unmarshal(type.buf, type.size, attesterKey, &asn_DEF_Public_Ed25519);
+        string bindingSig((const char *) binding->signature.buf, binding->signature.size);
+        string attKey((const char *) attesterKey->buf, attesterKey->size);
+        if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
+            (const unsigned char *) encodedData.c_str(), encodedData.length(), 
+            (const unsigned char *) attKey.c_str())) {
+            cerr << "signature: " << string_to_hex(bindingSig);
+            cerr << "\nkey: " << string_to_hex(attKey) << "\n";
+            verifyError("outer signature binding invalid");
+        }
+        cout << "valid outer signature binding\n";
 
-//         // Now we know the binding is valid, check the key is the same
-//         if (binding->get_tbs().get_outerSignatureScheme() != ephemeral_ed25519) {
-//             verifyError("outer signature scheme invalid");
-//         }
+        // Now we know the binding is valid, check the key is the same
+        if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
+            != getTypeId(&asn_DEF_Ed25519OuterSignature)) {
+            verifyError("outer signature scheme invalid");
+        }
 
-//         if (binding->get_tbs().get_verifyingKey() != osig->get_verifyingKey()) {
-//             verifyError("bound key does not match");
-//         }
-//         // check signature
-//         // gofunc: VerifySignature
-//         WaveAttestationTbs_PDU apdu;
-//         string encData = marshal(att->get_tbs(), apdu);
+        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, &binding->tbs.verifyingKey, &osig->verifyingKey)) {
+            verifyError("bound key does not match");
+        }
+        // check signature
+        // gofunc: VerifySignature
+        // string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
 
-//         Ed25519OuterSignature::verifyingKey vKey = osig->get_verifyingKey();
-//         Ed25519OuterSignature::signature sig = osig->get_signature();
-//         string s(sig.get_buffer(), sig.length());
-//         string v(vKey.get_buffer(), vKey.length());
-//         /* verify the signature */
-//         if (!ed25519_verify((const unsigned char *) s.c_str(), 
-//                 (const unsigned char *) encData.c_str(), encData.length(), 
-//                 (const unsigned char *) v.c_str())) {
-//             verifyError("invalid outer signature");
-//         }
-//         cout << "valid outer signature\n";
-//         AttestationItem aItem(att, decryptedBody);
-//         attestationList.push_back(aItem);
+        // OCTET_STRING_t vKey = osig->verifyingKey;
+        // OCTET_STRING_t sig = osig->signature;
+        // string s((const char *) sig.buf, sig.size);
+        // string v((const char *) vKey.buf, vKey.size);
+        // /* verify the signature */
+        // if (!ed25519_verify((const unsigned char *) s.c_str(), 
+        //         (const unsigned char *) encData.c_str(), encData.length(), 
+        //         (const unsigned char *) v.c_str())) {
+        //     verifyError("invalid outer signature");
+        // }
+        // cout << "valid outer signature\n";
+        // AttestationItem aItem(att, decryptedBody);
+        // attestationList.push_back(aItem);
     }
 
-//     cout << "Finished parsing attestations\n";
+    cout << "Finished parsing attestations\n";
 
-//     // now verify the paths
-//     vector<RTreePolicy> pathpolicies;
-//     vector<OssString *> pathEndEntities;
-//     WaveExplicitProof::paths paths = exp->get_paths();
-//     delete wwoPtr;
-//     cout << "paths retrieved\n";
+    // now verify the paths
+    // vector<RTreePolicy> pathpolicies;
+    // vector<OssString *> pathEndEntities;
+    // WaveExplicitProof::paths paths = exp->paths;
+    // cout << "paths retrieved\n";
 //     OssIndex pathIndex = paths.first();
 //     while (pathIndex != OSS_NOINDEX) {
 //         WaveExplicitProof::paths::component *p = paths.at(pathIndex);

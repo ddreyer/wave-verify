@@ -31,9 +31,12 @@
 #include <HashKeccak-256.h>
 #include <HashSha3-256.h>
 #include <WR1BodyCiphertext.h>
+#include <WR1VerifierBody.h>
+#include <SignedOuterKey.h>
 #include <LocationURL.h>
 #include <HashKeccak-256.h>
 #include <HashSha3-256.h>
+#include <Ed25519OuterSignature.h>
 
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
