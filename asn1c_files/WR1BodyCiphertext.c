@@ -53,32 +53,22 @@ static asn_TYPE_member_t asn_MBR_WR1BodyCiphertext_1[] = {
 		0, 0, /* No default value */
 		"envelopeKey-curve25519"
 		},
-	{ ATF_NOFLAGS, 0, offsetof(struct WR1BodyCiphertext, envelopeKey_curve25519_attester),
-		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
-		0,
-		&asn_DEF_OCTET_STRING,
-		0,
-		{ 0, 0, 0 },
-		0, 0, /* No default value */
-		"envelopeKey-curve25519-attester"
-		},
 };
 static const ber_tlv_tag_t asn_DEF_WR1BodyCiphertext_tags_1[] = {
 	(ASN_TAG_CLASS_UNIVERSAL | (16 << 2))
 };
 static const asn_TYPE_tag2member_t asn_MAP_WR1BodyCiphertext_tag2el_1[] = {
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 0, 0, 5 }, /* verifierBodyCiphertext */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, -1, 4 }, /* proverBodyCiphertext */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 2, -2, 3 }, /* envelopeCiphertext */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 3, -3, 2 }, /* envelopeKey-ibe-bn256 */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 4, -4, 1 }, /* envelopeKey-curve25519 */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 5, -5, 0 } /* envelopeKey-curve25519-attester */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 0, 0, 4 }, /* verifierBodyCiphertext */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, -1, 3 }, /* proverBodyCiphertext */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 2, -2, 2 }, /* envelopeCiphertext */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 3, -3, 1 }, /* envelopeKey-ibe-bn256 */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 4, -4, 0 } /* envelopeKey-curve25519 */
 };
 static asn_SEQUENCE_specifics_t asn_SPC_WR1BodyCiphertext_specs_1 = {
 	sizeof(struct WR1BodyCiphertext),
 	offsetof(struct WR1BodyCiphertext, _asn_ctx),
 	asn_MAP_WR1BodyCiphertext_tag2el_1,
-	6,	/* Count of tags in the map */
+	5,	/* Count of tags in the map */
 	0, 0, 0,	/* Optional elements (not needed) */
 	-1,	/* First extension addition */
 };
@@ -94,7 +84,7 @@ asn_TYPE_descriptor_t asn_DEF_WR1BodyCiphertext = {
 		/sizeof(asn_DEF_WR1BodyCiphertext_tags_1[0]), /* 1 */
 	{ 0, 0, SEQUENCE_constraint },
 	asn_MBR_WR1BodyCiphertext_1,
-	6,	/* Elements count */
+	5,	/* Elements count */
 	&asn_SPC_WR1BodyCiphertext_specs_1	/* Additional specs */
 };
 

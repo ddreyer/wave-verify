@@ -17,6 +17,7 @@
 #include <WaveEntitySecret.h>
 #include <WaveAttestation.h>
 #include <AttestationVerifierBody.h>
+#include <AttestationBody.h>
 #include <RTreeStatement.h>
 #include <WaveWireObject.h>
 #include <WaveExplicitProof.h>
@@ -27,7 +28,12 @@
 #include <Public-BN256-IBE.h>
 #include <Public-OAQUE.h>
 #include <AVKeyAES128-GCM.h>
+#include <HashKeccak-256.h>
+#include <HashSha3-256.h>
 #include <WR1BodyCiphertext.h>
+#include <LocationURL.h>
+#include <HashKeccak-256.h>
+#include <HashSha3-256.h>
 
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"

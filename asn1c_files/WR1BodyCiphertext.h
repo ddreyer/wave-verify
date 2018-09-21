@@ -26,7 +26,6 @@ typedef struct WR1BodyCiphertext {
 	OCTET_STRING_t	 envelopeCiphertext;
 	OCTET_STRING_t	 envelopeKey_ibe_bn256;
 	OCTET_STRING_t	 envelopeKey_curve25519;
-	OCTET_STRING_t	 envelopeKey_curve25519_attester;
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
