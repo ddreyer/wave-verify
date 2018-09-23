@@ -21,6 +21,9 @@ const string Sha3256Id("1");
 const string Keccak256Id("2");
 const string OuterSignatureScheme("5");
 const string EphemeralEd25519("1");
+const string PolicyScheme("12");
+const string TrustLevel("1");
+const string ResourceTree("2");
 
 EntityItem::EntityItem(WaveEntity_t *ent, string entDer) {
     entity = ent;
@@ -245,6 +248,10 @@ string getTypeId(asn_TYPE_descriptor_t *td) {
         return idJoiner(HashScheme, Sha3256Id);
     } else if (td == &asn_DEF_Ed25519OuterSignature) {
         return idJoiner(OuterSignatureScheme, EphemeralEd25519);
+    } else if (td == &asn_DEF_TrustLevel) {
+        return idJoiner(PolicyScheme, TrustLevel);
+    } else if (td == &asn_DEF_RTreePolicy) {
+        return idJoiner(PolicyScheme, ResourceTree);
     } else {
         verifyError("Could not find a match for a type id");
     }
@@ -287,58 +294,64 @@ OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
     }
 }
 
-// string HashSchemeInstanceFor(RTreePolicy policy) {
-//     OssEncOID id = policy.get_RTreePolicy_namespace().get_type_id();
-//     if (id == keccak_256_id) {
-//         HashKeccak_256 *hash = policy.get_RTreePolicy_namespace().get_value().get_HashKeccak_256();
-//         if (hash == nullptr) {
-//             verifyError("problem with hash");
-//         }
-//         if (hash->length() != 32) {
-//             verifyError("problem with hash");
-//         }
-//         return string(hash->get_buffer(), hash->length());
-//     } else if (id == sha3_256_id) {
-//         HashSha3_256 *hash = policy.get_RTreePolicy_namespace().get_value().get_HashSha3_256();
-//         if (hash == nullptr) {
-//             verifyError("problem with hash");
-//         }
-//         if (hash->length() != 32) {
-//             verifyError("problem with hash");
-//         }
-//         return string(hash->get_buffer(), hash->length());
-//     } else {
-//         verifyError("problem with hash");
-//     }
-// }
+OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy) {
+    ANY_t type = policy->Namespace.encoding.choice.single_ASN1_type;
+    string id = marshal(policy->Namespace.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+    if (id == getTypeId(&asn_DEF_HashKeccak_256)) {
+        HashKeccak_256_t *hash = 0;
+        hash = unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->size != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
+        HashSha3_256_t *hash = 0;
+        hash = unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->size != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else {
+        verifyError("problem with hash");
+    }
+}
 
-// string HashSchemeInstanceFor(RTreeStatement::permissionSet pSet) {
-//     OssEncOID id = pSet.get_type_id();
-//     if (id == keccak_256_id) {
-//         HashKeccak_256 *hash = pSet.get_value().get_HashKeccak_256();
-//         if (hash == nullptr) {
-//             verifyError("problem with hash");
-//         }
-//         if (hash->length() != 32) {
-//             verifyError("problem with hash");
-//         }
-//         return string(hash->get_buffer(), hash->length());
-//     } else if (id == sha3_256_id) {
-//         HashSha3_256 *hash = pSet.get_value().get_HashSha3_256();
-//         if (hash == nullptr) {
-//             verifyError("problem with hash");
-//         }
-//         if (hash->length() != 32) {
-//             verifyError("problem with hash");
-//         }
-//         return string(hash->get_buffer(), hash->length());
-//     } else {
-//         verifyError("problem with hash");
-//     }
-// }
+OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
+    ANY_t type = pSet->encoding.choice.single_ASN1_type;
+    string id = marshal(pSet->direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+    if (id == getTypeId(&asn_DEF_HashKeccak_256)) {
+        HashKeccak_256_t *hash = 0;
+        hash = unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->size != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
+        HashSha3_256_t *hash = 0;
+        hash = unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
+        if (hash == nullptr) {
+            verifyError("problem with hash");
+        }
+        if (hash->size != 32) {
+            verifyError("problem with hash");
+        }
+        return hash;
+    } else {
+        verifyError("problem with hash");
+    }
+}
 
 LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
-    ANY_t type = att->tbs.subject.encoding.choice.single_ASN1_type;
+    ANY_t type = att->tbs.subjectLocation.encoding.choice.single_ASN1_type;
     LocationURL_t *lsurl = 0;
     lsurl = unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
@@ -347,102 +360,122 @@ LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
     return lsurl;
 }
 
-// vector<string> split(string s, string delimiter) {
-//     size_t pos = 0;
-//     string token;
-//     vector<string> splitStr;
-//     while ((pos = s.find(delimiter)) != string::npos) {
-//         token = s.substr(0, pos);
-//         splitStr.push_back(token);
-//         s.erase(0, pos + delimiter.length());
-//     }
-//     splitStr.push_back(s);
-//     return splitStr;
-// }
+RTreePolicy_t * PolicySchemeInstanceFor(AttestationVerifierBody_t *attVerBody) {
+    RTreePolicy_t *policy = 0;
+    ANY_t type = attVerBody->policy.encoding.choice.single_ASN1_type;
+    string currBodyId = marshal(attVerBody->policy.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+    if (currBodyId == getTypeId(&asn_DEF_TrustLevel)) {
+        TrustLevel_t *tp = 0;
+        tp = unmarshal(type.buf, type.size, tp, &asn_DEF_TrustLevel);
+        verifyError("not supporting trust level policy right now");
+    } else if (currBodyId == getTypeId(&asn_DEF_RTreePolicy)) {
+        policy = unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
+        if (policy == nullptr) {
+            verifyError("unexpected policy error");
+        }
+        return policy;
+    } else {
+        verifyError("unsupported policy scheme");
+    }
+}
 
-// string emit(vector<string> *bout, vector<string> *fout) {
-//     for (int i = 0; i < bout->size(); i++) {
-//         fout->push_back((*bout)[bout->size()-i-1]);
-//     }
-//     stringstream ss;
-//     for (size_t i = 0; i < fout->size(); ++i) {
-//         if (i != 0) {
-//             ss << ",";
-//         }
-//         ss << (*fout)[i];
-//     }
-//     return ss.str();
-// }
 
-// string RestrictBy(string from, string by) {
-//     vector<string> fp = split(from, "/");
-//     vector<string> bp = split(by, "/");
-//     vector<string> fout;
-//     vector<string> bout;
-//     string intersectionResource;
-//     // phase 1: emit matching prefix
-//     int fi = 0, bi = 0;
-//     int fni = fp.size() - 1, bni = bp.size() - 1;
-//     for (; fi < fp.size() && bi < bp.size(); fi, bi = fi+1, bi+1) {
-//         if (fp[fi] != "*" && (fp[fi] == bp[bi] || (bp[bi] == "+" && fp[fi] != "*"))) {
-//             fout.push_back(fp[fi]);
-//         } else if (fp[fi] == "+" && bp[bi] != "*") {
-//             fout.push_back(bp[bi]);
-//         } else {
-//             break;
-//         }
-//     }
-//     //phase 2
-//     //emit matching suffix
-//     for (; fni >= fi && bni >= bi; fni, bni = fni-1, bni-1) {
-//         if (bp[bni] != "*" && (fp[fni] == bp[bni] || (bp[bni] == "+" && fp[fni] != "*"))) {
-//             bout.push_back(fp[fni]);
-//         } else if (fp[fni] == "+" && bp[bni] != "*") {
-//             bout.push_back(bp[bni]);
-//         } else {
-//             break;
-//         }
-//     }
-//     //phase 3
-//     //emit front
-//     if (fi < fp.size() && fp[fi] == "*") {
-//         for (; bi < bp.size() && bp[bi] != "*" && bi <= bni; bi++) {
-//             fout.push_back(bp[bi]);
-//         }
-//     } else if (bi < bp.size() && bp[bi] == "*") {
-//         for (; fi < fp.size() && fp[fi] != "*" && fi <= fni; fi++) {
-//             fout.push_back(fp[fi]);
-//         }
-//     }
-//     //phase 4
-//     //emit back
-//     if (fni >= 0 && fp[fni] == "*") {
-//         for (; bni >= 0 && bp[bni] != "*" && bni >= bi; bni--) {
-//             bout.push_back(bp[bni]);
-//         }
-//     } else if (bni >= 0 && bp[bni] == "*") {
-//         for (; fni >= 0 && fp[fni] != "*" && fni >= fi; fni--) {
-//             bout.push_back(fp[fni]);
-//         }
-//     }
-//     //phase 5
-//     //emit star if they both have it
-//     if (fi == fni && fp[fi] == "*" && bi == bni && bp[bi] == "*") {
-//         fout.push_back("*");
-//         intersectionResource = emit(&bout, &fout);
-//     }
-//     //Remove any stars
-//     if (fi < fp.size() && fp[fi] == "*") {
-//         fi++;
-//     }
-//     if (bi < bp.size() && bp[bi] == "*") {
-//         bi++;
-//     }
-//     if ((fi == fni+1 || fi == fp.size()) && (bi == bni+1 || bi == bp.size())) {
-//         intersectionResource = emit(&bout, &fout);
-//     }
-//     return intersectionResource;
-// }
+vector<string> split(string s, string delimiter) {
+    size_t pos = 0;
+    string token;
+    vector<string> splitStr;
+    while ((pos = s.find(delimiter)) != string::npos) {
+        token = s.substr(0, pos);
+        splitStr.push_back(token);
+        s.erase(0, pos + delimiter.length());
+    }
+    splitStr.push_back(s);
+    return splitStr;
+}
+
+string emit(vector<string> *bout, vector<string> *fout) {
+    for (int i = 0; i < bout->size(); i++) {
+        fout->push_back((*bout)[bout->size()-i-1]);
+    }
+    stringstream ss;
+    for (size_t i = 0; i < fout->size(); ++i) {
+        if (i != 0) {
+            ss << ",";
+        }
+        ss << (*fout)[i];
+    }
+    return ss.str();
+}
+
+string RestrictBy(string from, string by) {
+    vector<string> fp = split(from, "/");
+    vector<string> bp = split(by, "/");
+    vector<string> fout;
+    vector<string> bout;
+    string intersectionResource;
+    // phase 1: emit matching prefix
+    int fi = 0, bi = 0;
+    int fni = fp.size() - 1, bni = bp.size() - 1;
+    for (; fi < fp.size() && bi < bp.size(); fi, bi = fi+1, bi+1) {
+        if (fp[fi] != "*" && (fp[fi] == bp[bi] || (bp[bi] == "+" && fp[fi] != "*"))) {
+            fout.push_back(fp[fi]);
+        } else if (fp[fi] == "+" && bp[bi] != "*") {
+            fout.push_back(bp[bi]);
+        } else {
+            break;
+        }
+    }
+    //phase 2
+    //emit matching suffix
+    for (; fni >= fi && bni >= bi; fni, bni = fni-1, bni-1) {
+        if (bp[bni] != "*" && (fp[fni] == bp[bni] || (bp[bni] == "+" && fp[fni] != "*"))) {
+            bout.push_back(fp[fni]);
+        } else if (fp[fni] == "+" && bp[bni] != "*") {
+            bout.push_back(bp[bni]);
+        } else {
+            break;
+        }
+    }
+    //phase 3
+    //emit front
+    if (fi < fp.size() && fp[fi] == "*") {
+        for (; bi < bp.size() && bp[bi] != "*" && bi <= bni; bi++) {
+            fout.push_back(bp[bi]);
+        }
+    } else if (bi < bp.size() && bp[bi] == "*") {
+        for (; fi < fp.size() && fp[fi] != "*" && fi <= fni; fi++) {
+            fout.push_back(fp[fi]);
+        }
+    }
+    //phase 4
+    //emit back
+    if (fni >= 0 && fp[fni] == "*") {
+        for (; bni >= 0 && bp[bni] != "*" && bni >= bi; bni--) {
+            bout.push_back(bp[bni]);
+        }
+    } else if (bni >= 0 && bp[bni] == "*") {
+        for (; fni >= 0 && fp[fni] != "*" && fni >= fi; fni--) {
+            bout.push_back(fp[fni]);
+        }
+    }
+    //phase 5
+    //emit star if they both have it
+    if (fi == fni && fp[fi] == "*" && bi == bni && bp[bi] == "*") {
+        fout.push_back("*");
+        intersectionResource = emit(&bout, &fout);
+    }
+    //Remove any stars
+    if (fi < fp.size() && fp[fi] == "*") {
+        fi++;
+    }
+    if (bi < bp.size() && bp[bi] == "*") {
+        bi++;
+    }
+    if ((fi == fni+1 || fi == fp.size()) && (bi == bni+1 || bi == bp.size())) {
+        intersectionResource = emit(&bout, &fout);
+    }
+    return intersectionResource;
+}
 
 // bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset) {
 //     string lhs_ps = HashSchemeInstanceFor(subset->get_permissionSet());
@@ -928,7 +961,7 @@ int verify(string pemContent) {
     cout << "Finished parsing attestations\n";
 
     // now verify the paths
-    // vector<RTreePolicy> pathpolicies;
+    vector<RTreePolicy_t *> pathpolicies;
     // vector<OssString *> pathEndEntities;
     WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
     cout << "paths retrieved\n";
@@ -944,87 +977,64 @@ int verify(string pemContent) {
         // path[0]
         long *pathNum = p->list.array[pIndex];
         pIndex++;
-        // try {
-        //     attestationList.at(*pathNum); 
-        // } catch (...) {
-        //     verifyError("proof refers to non-included attestation");
-        // }
+        try {
+            attestationList.at(*pathNum); 
+        } catch (...) {
+            verifyError("proof refers to non-included attestation");
+        }
 
-        // AttestationItem currAttItem = attestationList.at(*pathNum);
-//         WaveAttestation *currAtt = currAttItem.get_att();
-//         // gofunc: Subject
-//         OssEncOID subId = currAtt->get_tbs().get_subject().get_type_id();
-//         // gofunc: HashSchemeInstanceFor
-//         OssString *cursubj = HashSchemeInstanceFor(currAtt);
+        AttestationItem currAttItem = attestationList.at(*pathNum);
+        WaveAttestation_t *currAtt = currAttItem.get_att();
+        // gofunc: Subject
+        // gofunc: HashSchemeInstanceFor
+        OCTET_STRING_t *cursubj = HashSchemeInstanceFor(currAtt);
 
-//         // gofunc: LocationSchemeInstanceFor
-//         LocationURL *cursubloc = LocationSchemeInstanceFor(currAtt);
+        // gofunc: LocationSchemeInstanceFor
+        LocationURL_t *cursubloc = LocationSchemeInstanceFor(currAtt);
 
-//         // gofunc: PolicySchemeInstanceFor
-//         AttestationVerifierBody currBody = currAttItem.get_body();
-//         RTreePolicy *policy;
-//         if (currBody.get_policy().get_type_id() == trust_level) {
-//             TrustLevel *tp = currBody.get_policy().get_value().get_TrustLevel();
-//             verifyError("not supporting trust level policy right now");
-//         } else if (currBody.get_policy().get_type_id() == resource_tree) {
-//             policy = currBody.get_policy().get_value().get_RTreePolicy();
-//             if (policy == nullptr) {
-//                 verifyError("unexpected policy error");
-//             }
-//         } else {
-//             verifyError("unsupported policy scheme");
-//         }
+        // gofunc: PolicySchemeInstanceFor
+        AttestationVerifierBody_t *currBody = currAttItem.get_body();
+        RTreePolicy_t *policy = PolicySchemeInstanceFor(currBody);
 
-//         while (pIndex != OSS_NOINDEX) {
-//             pathNum = p->at(pIndex);
-//             pIndex = p->next(pIndex);
-//             try {
-//                 attestationList.at(*pathNum); 
-//             } catch (...) {
-//                 verifyError("proof refers to non-included attestation");
-//             }
+        while (pIndex < p->list.count) {
+            pathNum = p->list.array[pIndex];
+            pIndex++;
+            try {
+                attestationList.at(*pathNum); 
+            } catch (...) {
+                verifyError("proof refers to non-included attestation");
+            }
 
-//             AttestationItem nextAttItem = attestationList.at(*pathNum);
-//             WaveAttestation *nextAtt = currAttItem.get_att();
-//             // gofunc: HashSchemeInstanceFor
-//             OssString *nextAttest = HashSchemeInstanceFor(nextAtt);
+            AttestationItem nextAttItem = attestationList.at(*pathNum);
+            WaveAttestation_t *nextAtt = currAttItem.get_att();
+            // gofunc: HashSchemeInstanceFor
+            OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(nextAtt);
 
-//             // gofunc: LocationSchemeInstanceFor
-//             LocationURL *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
+            // gofunc: LocationSchemeInstanceFor
+            LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
 
-//             if (memcmp(cursubj->get_buffer(), nextAttest->get_buffer(), cursubj->length())) {
-//                 verifyError("path has broken links");
-//             }
+            if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
+                verifyError("path has broken links");
+            }
 
-//             // gofunc: PolicySchemeInstanceFor
-//             AttestationVerifierBody nextBody = nextAttItem.get_body();
-//             RTreePolicy *nextPolicy;
-//             if (nextBody.get_policy().get_type_id() == trust_level) {
-//                 TrustLevel *tp = nextBody.get_policy().get_value().get_TrustLevel();
-//                 verifyError("not supporting trust level policy right now");
-//             } else if (nextBody.get_policy().get_type_id() == resource_tree) {
-//                 nextPolicy = nextBody.get_policy().get_value().get_RTreePolicy();
-//                 if (nextPolicy == nullptr) {
-//                     verifyError("unexpected policy error");
-//                 }
-//             } else {
-//                 verifyError("unsupported policy scheme");
-//             }
+            // gofunc: PolicySchemeInstanceFor
+            AttestationVerifierBody_t *nextBody = nextAttItem.get_body();
+            RTreePolicy_t *nextPolicy = PolicySchemeInstanceFor(nextBody);
 
-//             // gofunc: Intersect
-//             string rhs_ns = HashSchemeInstanceFor(*nextPolicy);
-//             string lhs_ns = HashSchemeInstanceFor(*policy);
-//             // not doing multihash
-//             if (rhs_ns.compare(lhs_ns) != 0) {
-//                 verifyError("different authority domain");
-//             }
-//             // gofunc: intersectStatement
-//             vector<RTreeStatementItem> statements;
-//             RTreePolicy::statements policyStatements = policy->get_statements();
-//             OssIndex lhs_index = policyStatements.first();
-//             while (lhs_index != OSS_NOINDEX) {
-//                 RTreeStatement *leftStatement = policyStatements.at(lhs_index);
-//                 lhs_index = policyStatements.next(lhs_index);
+            // gofunc: Intersect
+            OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(nextPolicy);
+            OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+            // // not doing multihash
+            if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
+                verifyError("different authority domain");
+            }
+            // gofunc: intersectStatement
+            vector<RTreeStatement_t *> statements;
+            RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
+            int lhs_index = 0;
+            while (lhs_index < policyStatements.list.count) {
+                RTreeStatement_t *leftStatement = policyStatements.list.array[lhs_index];
+                lhs_index++;
 //                 RTreePolicy::statements nextPolicyStatements = nextPolicy->get_statements();
 //                 OssIndex rhs_index = nextPolicyStatements.first();
 //                 while (rhs_index != OSS_NOINDEX) {
@@ -1067,8 +1077,8 @@ int verify(string pemContent) {
 //                         RTreeStatementItem item(leftStatement->get_permissionSet(), intersectionPerms, intersectionResource);
 //                         statements.push_back(item);
 //                     }
-//                 }   
-//             }
+                }   
+            }
 
 //             vector<RTreeStatementItem> dedup_statements;
 //             computeStatements(&statements, &dedup_statements);

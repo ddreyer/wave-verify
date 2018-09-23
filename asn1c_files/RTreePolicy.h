@@ -13,7 +13,6 @@
 
 /* Including external dependencies */
 #include "EntityHash.h"
-#include "Location.h"
 #include <NativeInteger.h>
 #include <asn_SEQUENCE_OF.h>
 #include <constr_SEQUENCE_OF.h>
@@ -29,7 +28,6 @@ struct RTreeStatement;
 /* RTreePolicy */
 typedef struct RTreePolicy {
 	EntityHash_t	 Namespace;
-	Location_t	 namespaceLocation;
 	long	 indirections;
 	struct RTreePolicy__statements {
 		A_SEQUENCE_OF(struct RTreeStatement) list;

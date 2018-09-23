@@ -37,6 +37,9 @@
 #include <HashKeccak-256.h>
 #include <HashSha3-256.h>
 #include <Ed25519OuterSignature.h>
+#include <RTreePolicy.h>
+#include <RTreeStatement.h>
+#include <TrustLevel.h>
 
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"

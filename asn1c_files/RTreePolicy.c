@@ -7,7 +7,7 @@
 
 #include "RTreePolicy.h"
 
-static asn_TYPE_member_t asn_MBR_statements_5[] = {
+static asn_TYPE_member_t asn_MBR_statements_4[] = {
 	{ ATF_POINTER, 0, 0,
 		(ASN_TAG_CLASS_UNIVERSAL | (16 << 2)),
 		0,
@@ -18,29 +18,29 @@ static asn_TYPE_member_t asn_MBR_statements_5[] = {
 		""
 		},
 };
-static const ber_tlv_tag_t asn_DEF_statements_tags_5[] = {
+static const ber_tlv_tag_t asn_DEF_statements_tags_4[] = {
 	(ASN_TAG_CLASS_UNIVERSAL | (16 << 2))
 };
-static asn_SET_OF_specifics_t asn_SPC_statements_specs_5 = {
+static asn_SET_OF_specifics_t asn_SPC_statements_specs_4 = {
 	sizeof(struct RTreePolicy__statements),
 	offsetof(struct RTreePolicy__statements, _asn_ctx),
 	0,	/* XER encoding is XMLDelimitedItemList */
 };
 static /* Use -fall-defs-global to expose */
-asn_TYPE_descriptor_t asn_DEF_statements_5 = {
+asn_TYPE_descriptor_t asn_DEF_statements_4 = {
 	"statements",
 	"statements",
 	&asn_OP_SEQUENCE_OF,
-	asn_DEF_statements_tags_5,
-	sizeof(asn_DEF_statements_tags_5)
-		/sizeof(asn_DEF_statements_tags_5[0]), /* 1 */
-	asn_DEF_statements_tags_5,	/* Same as above */
-	sizeof(asn_DEF_statements_tags_5)
-		/sizeof(asn_DEF_statements_tags_5[0]), /* 1 */
+	asn_DEF_statements_tags_4,
+	sizeof(asn_DEF_statements_tags_4)
+		/sizeof(asn_DEF_statements_tags_4[0]), /* 1 */
+	asn_DEF_statements_tags_4,	/* Same as above */
+	sizeof(asn_DEF_statements_tags_4)
+		/sizeof(asn_DEF_statements_tags_4[0]), /* 1 */
 	{ 0, 0, SEQUENCE_OF_constraint },
-	asn_MBR_statements_5,
+	asn_MBR_statements_4,
 	1,	/* Single element */
-	&asn_SPC_statements_specs_5	/* Additional specs */
+	&asn_SPC_statements_specs_4	/* Additional specs */
 };
 
 static asn_TYPE_member_t asn_MBR_RTreePolicy_1[] = {
@@ -52,15 +52,6 @@ static asn_TYPE_member_t asn_MBR_RTreePolicy_1[] = {
 		{ 0, 0, 0 },
 		0, 0, /* No default value */
 		"namespace"
-		},
-	{ ATF_NOFLAGS, 0, offsetof(struct RTreePolicy, namespaceLocation),
-		(ASN_TAG_CLASS_UNIVERSAL | (8 << 2)),
-		0,
-		&asn_DEF_Location,
-		0,
-		{ 0, 0, 0 },
-		0, 0, /* No default value */
-		"namespaceLocation"
 		},
 	{ ATF_NOFLAGS, 0, offsetof(struct RTreePolicy, indirections),
 		(ASN_TAG_CLASS_UNIVERSAL | (2 << 2)),
@@ -74,7 +65,7 @@ static asn_TYPE_member_t asn_MBR_RTreePolicy_1[] = {
 	{ ATF_NOFLAGS, 0, offsetof(struct RTreePolicy, statements),
 		(ASN_TAG_CLASS_UNIVERSAL | (16 << 2)),
 		0,
-		&asn_DEF_statements_5,
+		&asn_DEF_statements_4,
 		0,
 		{ 0, 0, 0 },
 		0, 0, /* No default value */
@@ -85,16 +76,15 @@ static const ber_tlv_tag_t asn_DEF_RTreePolicy_tags_1[] = {
 	(ASN_TAG_CLASS_UNIVERSAL | (16 << 2))
 };
 static const asn_TYPE_tag2member_t asn_MAP_RTreePolicy_tag2el_1[] = {
-    { (ASN_TAG_CLASS_UNIVERSAL | (2 << 2)), 2, 0, 0 }, /* indirections */
-    { (ASN_TAG_CLASS_UNIVERSAL | (8 << 2)), 0, 0, 1 }, /* namespace */
-    { (ASN_TAG_CLASS_UNIVERSAL | (8 << 2)), 1, -1, 0 }, /* namespaceLocation */
-    { (ASN_TAG_CLASS_UNIVERSAL | (16 << 2)), 3, 0, 0 } /* statements */
+    { (ASN_TAG_CLASS_UNIVERSAL | (2 << 2)), 1, 0, 0 }, /* indirections */
+    { (ASN_TAG_CLASS_UNIVERSAL | (8 << 2)), 0, 0, 0 }, /* namespace */
+    { (ASN_TAG_CLASS_UNIVERSAL | (16 << 2)), 2, 0, 0 } /* statements */
 };
 static asn_SEQUENCE_specifics_t asn_SPC_RTreePolicy_specs_1 = {
 	sizeof(struct RTreePolicy),
 	offsetof(struct RTreePolicy, _asn_ctx),
 	asn_MAP_RTreePolicy_tag2el_1,
-	4,	/* Count of tags in the map */
+	3,	/* Count of tags in the map */
 	0, 0, 0,	/* Optional elements (not needed) */
 	-1,	/* First extension addition */
 };
@@ -110,7 +100,7 @@ asn_TYPE_descriptor_t asn_DEF_RTreePolicy = {
 		/sizeof(asn_DEF_RTreePolicy_tags_1[0]), /* 1 */
 	{ 0, 0, SEQUENCE_constraint },
 	asn_MBR_RTreePolicy_1,
-	4,	/* Elements count */
+	3,	/* Elements count */
 	&asn_SPC_RTreePolicy_specs_1	/* Additional specs */
 };
 
