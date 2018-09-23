@@ -51,23 +51,23 @@ AttestationVerifierBody_t * AttestationItem::get_body() {
     return decryptedBody;
 }
 
-// RTreeStatementItem::RTreeStatementItem(RTreeStatement::permissionSet pSet, list<string> perms, string iResource) {
-//     permissionSet = pSet;
-//     permissions = perms;
-//     intersectionResource = iResource;
-// }
+RTreeStatementItem::RTreeStatementItem(EntityHash_t *pSet, list<string> perms, string iResource) {
+    permissionSet = pSet;
+    permissions = perms;
+    intersectionResource = iResource;
+}
 
-// RTreeStatement::permissionSet RTreeStatementItem::get_permissionSet() {
-//     return permissionSet;
-// }
+EntityHash_t * RTreeStatementItem::get_permissionSet() {
+    return permissionSet;
+}
 
-// list<string> RTreeStatementItem::get_permissions() {
-//     return permissions;
-// }
+list<string> RTreeStatementItem::get_permissions() {
+    return permissions;
+}
 
-// string RTreeStatementItem::get_interResource() {
-//     return intersectionResource;
-// }
+string RTreeStatementItem::get_interResource() {
+    return intersectionResource;
+}
 
 static inline bool is_base64(unsigned char c) {
     return (isalnum(c) || (c == '+') || (c == '/'));
@@ -477,63 +477,63 @@ string RestrictBy(string from, string by) {
     return intersectionResource;
 }
 
-// bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset) {
-//     string lhs_ps = HashSchemeInstanceFor(subset->get_permissionSet());
-//     string rhs_ps = HashSchemeInstanceFor(superset->get_permissionSet());
-//     if (lhs_ps.compare(rhs_ps) != 0) {
-//         return false;
-//     }
-//     unordered_map<string, bool> superset_perms;
-//     for (auto perm : superset->get_permissions()) {
-//         superset_perms[perm] = true;
-//     }
-//     for (auto perm : subset->get_permissions()) {
-//         if (!superset_perms[perm]) {
-//             return false;
-//         }
-//     }
-//     // gofunc: RestrictBy
-//     string inter_uri = RestrictBy(subset->get_interResource(), superset->get_interResource());
-//     if (inter_uri.empty()) {
-//         return false;
-//     }
-//     return !inter_uri.compare(subset->get_interResource());
-// }
+bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset) {
+    OCTET_STRING_t *lhs_ps = HashSchemeInstanceFor(subset->get_permissionSet());
+    OCTET_STRING_t *rhs_ps = HashSchemeInstanceFor(superset->get_permissionSet());
+    if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
+        return false;
+    }
+    unordered_map<string, bool> superset_perms;
+    for (auto perm : superset->get_permissions()) {
+        superset_perms[perm] = true;
+    }
+    for (auto perm : subset->get_permissions()) {
+        if (!superset_perms[perm]) {
+            return false;
+        }
+    }
+    // gofunc: RestrictBy
+    string inter_uri = RestrictBy(subset->get_interResource(), superset->get_interResource());
+    if (inter_uri.empty()) {
+        return false;
+    }
+    return !inter_uri.compare(subset->get_interResource());
+}
 
-// void computeStatements(vector<RTreeStatementItem> *statements, vector<RTreeStatementItem> *dedup_statements) {
-//     next:
-//     for (int orig_idx = 0; orig_idx < statements->size(); orig_idx++) {
-//         for (int chosen_idx = 0; chosen_idx < dedup_statements->size(); chosen_idx++) {
-//             if (isStatementSupersetOf(&(*statements)[orig_idx], &(*dedup_statements)[chosen_idx])) {
-//                 goto next;
-//             }
-//             if (isStatementSupersetOf(&(*dedup_statements)[chosen_idx], &(*statements)[orig_idx])) {
-//                 dedup_statements[chosen_idx] = statements[orig_idx];
-//                 goto next;
-//             }
-//         }
-//         dedup_statements->push_back((*statements)[orig_idx]);
-//     }
-// }
+void computeStatements(vector<RTreeStatementItem> *statements, vector<RTreeStatementItem> *dedup_statements) {
+    next:
+    for (int orig_idx = 0; orig_idx < statements->size(); orig_idx++) {
+        for (int chosen_idx = 0; chosen_idx < dedup_statements->size(); chosen_idx++) {
+            if (isStatementSupersetOf(&(*statements)[orig_idx], &(*dedup_statements)[chosen_idx])) {
+                goto next;
+            }
+            if (isStatementSupersetOf(&(*dedup_statements)[chosen_idx], &(*statements)[orig_idx])) {
+                dedup_statements[chosen_idx] = statements[orig_idx];
+                goto next;
+            }
+        }
+        dedup_statements->push_back((*statements)[orig_idx]);
+    }
+}
 
-// void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy::statements *policyStments) {
-//     OssIndex index = policyStments->first();
-//     while (index != OSS_NOINDEX) {
-//         RTreeStatement *s = policyStments->at(index);
-//         RTreeStatement::permissions perms = s->get_permissions();
-//         OssIndex i = perms.first();
-//         list<string> permList;
-//         while (i != OSS_NOINDEX) {
-//             OssString *str = perms.at(i);
-//             permList.push_back(string(str->get_buffer(), str->length()));
-//             i = perms.next(i);
-//         }
-//         string rsource(s->get_resource().get_buffer(), s->get_resource().length());
-//         RTreeStatementItem item(s->get_permissionSet(), permList, rsource);
-//         statements->push_back(item);
-//         index = policyStments->next(index);
-//     }
-// }
+void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTreePolicy__statements *policyStments) {
+    int index = 0;
+    while (index < policyStments->list.count) {
+        RTreeStatement_t *s = policyStments->list.array[index];
+        RTreeStatement_t::RTreeStatement__permissions perms = s->permissions;
+        int i = 0;
+        list<string> permList;
+        while (i < perms.list.count) {
+            UTF8String_t *str = perms.list.array[i];
+            permList.push_back(string((const char *) str->buf, str->size));
+            i++;
+        }
+        string rsource((const char *) s->resource.buf, s->resource.size);
+        RTreeStatementItem item(&s->permissionSet, permList, rsource);
+        statements->push_back(item);
+        index++;
+    }
+}
 
 int verify(string pemContent) {
     string derEncodedData(base64_decode(pemContent));
@@ -962,7 +962,7 @@ int verify(string pemContent) {
 
     // now verify the paths
     vector<RTreePolicy_t *> pathpolicies;
-    // vector<OssString *> pathEndEntities;
+    vector<OCTET_STRING_t *> pathEndEntities;
     WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
     cout << "paths retrieved\n";
     int pathIndex = 0;
@@ -1029,109 +1029,109 @@ int verify(string pemContent) {
                 verifyError("different authority domain");
             }
             // gofunc: intersectStatement
-            vector<RTreeStatement_t *> statements;
+            vector<RTreeStatementItem> statements;
             RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
             int lhs_index = 0;
             while (lhs_index < policyStatements.list.count) {
                 RTreeStatement_t *leftStatement = policyStatements.list.array[lhs_index];
                 lhs_index++;
-//                 RTreePolicy::statements nextPolicyStatements = nextPolicy->get_statements();
-//                 OssIndex rhs_index = nextPolicyStatements.first();
-//                 while (rhs_index != OSS_NOINDEX) {
-//                     RTreeStatement *rightStatement = nextPolicyStatements.at(rhs_index);
-//                     rhs_index = nextPolicyStatements.next(rhs_index);
-//                     string lhs_ps = HashSchemeInstanceFor(leftStatement->get_permissionSet());
-//                     string rhs_ps = HashSchemeInstanceFor(rightStatement->get_permissionSet());
-//                     if (lhs_ps.compare(rhs_ps) != 0) {
-//                         continue;
-//                     }
+                RTreePolicy_t::RTreePolicy__statements nextPolicyStatements = nextPolicy->statements;
+                int rhs_index = 0;
+                while (rhs_index < nextPolicyStatements.list.count) {
+                    RTreeStatement_t *rightStatement = nextPolicyStatements.list.array[rhs_index];
+                    rhs_index++;
+                    OCTET_STRING_t *lhs_ps = HashSchemeInstanceFor(&leftStatement->permissionSet);
+                    OCTET_STRING_t *rhs_ps = HashSchemeInstanceFor(&rightStatement->permissionSet);
+                    if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
+                        continue;
+                    }
 
-//                     unordered_map <string, bool> lhs_perms;
-//                     OssIndex lpermIdx = leftStatement->get_permissions().first();
-//                     while (lpermIdx != OSS_NOINDEX) {
-//                         OssString *lperm = leftStatement->get_permissions().at(lpermIdx);
-//                         lpermIdx = leftStatement->get_permissions().next(lpermIdx);
-//                         lhs_perms[string(lperm->get_buffer(), lperm->length())] = true;
-//                     }
-//                     list<string> intersectionPerms;
-//                     OssIndex rpermIdx = rightStatement->get_permissions().first();
-//                     while (rpermIdx != OSS_NOINDEX) {
-//                         OssString *rperm = rightStatement->get_permissions().at(rpermIdx);
-//                         rpermIdx = rightStatement->get_permissions().next(rpermIdx);
-//                         string rpermStr = string(rperm->get_buffer(), rperm->length());
-//                         if (lhs_perms[rpermStr]) {
-//                             intersectionPerms.push_back(rpermStr);
-//                         }
-//                     }
-//                     if (intersectionPerms.size() == 0) {
-//                         continue;
-//                     }
-//                     // gofunc: RestrictBy
-//                     string from = string(leftStatement->get_resource().get_buffer(), 
-//                         leftStatement->get_resource().length());
-//                     string by = string(rightStatement->get_resource().get_buffer(), 
-//                         rightStatement->get_resource().length());
-//                     string intersectionResource = RestrictBy(from, by);
+                    unordered_map <string, bool> lhs_perms;
+                    int lpermIdx = 0;
+                    while (lpermIdx < leftStatement->permissions.list.count) {
+                        UTF8String_t *lperm = leftStatement->permissions.list.array[lpermIdx];
+                        lpermIdx++;
+                        lhs_perms[string((const char *) lperm->buf, lperm->size)] = true;
+                    }
+                    list<string> intersectionPerms;
+                    int rpermIdx = 0;
+                    while (rpermIdx < rightStatement->permissions.list.count) {
+                        UTF8String_t *rperm = rightStatement->permissions.list.array[rpermIdx];
+                        rpermIdx++;
+                        string rpermStr = string((const char *) rperm->buf, rperm->size);
+                        if (lhs_perms[rpermStr]) {
+                            intersectionPerms.push_back(rpermStr);
+                        }
+                    }
+                    if (intersectionPerms.size() == 0) {
+                        continue;
+                    }
+                    // gofunc: RestrictBy
+                    string from = string((const char *) leftStatement->resource.buf, leftStatement->resource.size);
+                    string by = string((const char *) rightStatement->resource.buf, rightStatement->resource.size);
+                    string intersectionResource = RestrictBy(from, by);
 
-//                     if (intersectionResource.empty()) {
-//                         RTreeStatementItem item(leftStatement->get_permissionSet(), intersectionPerms, intersectionResource);
-//                         statements.push_back(item);
-//                     }
+                    if (intersectionResource.empty()) {
+                        RTreeStatementItem item(&leftStatement->permissionSet, intersectionPerms, intersectionResource);
+                        statements.push_back(item);
+                    }
                 }   
             }
 
-//             vector<RTreeStatementItem> dedup_statements;
-//             computeStatements(&statements, &dedup_statements);
-//             int indirections;
-//             if (policy->get_indirections() < nextPolicy->get_indirections()) {
-//                 indirections = policy->get_indirections() - 1;
-//             } else {
-//                 indirections = nextPolicy->get_indirections() - 1;
-//             }
+            vector<RTreeStatementItem> dedup_statements;
+            computeStatements(&statements, &dedup_statements);
+            int indirections;
+            if (policy->indirections < nextPolicy->indirections) {
+                indirections = policy->indirections - 1;
+            } else {
+                indirections = nextPolicy->indirections - 1;
+            }
 
-//             //Check errors
-//             if (indirections < 0) {
-//                 verifyError("insufficient permitted indirections");
-//             }
-//             if (dedup_statements.size() > PermittedCombinedStatements) {
-//                 verifyError("statements form too many combinations");
-//             }
-//             cursubj = nextAttest;
-//             LocationURL *cursubloc = nextAttLoc;
-//         }
-//         pathpolicies.push_back(*policy);
-//         pathEndEntities.push_back(cursubj);
-//         LocationURL *subjectLocation = cursubloc;
+            // Check errors
+            if (indirections < 0) {
+                verifyError("insufficient permitted indirections");
+            }
+            if (dedup_statements.size() > PermittedCombinedStatements) {
+                verifyError("statements form too many combinations");
+            }
+            cursubj = nextAttest;
+            LocationURL_t *cursubloc = nextAttLoc;
+        }
+        pathpolicies.push_back(policy);
+        pathEndEntities.push_back(cursubj);
+        LocationURL_t *subjectLocation = cursubloc;
     }
-//     // Now combine the policies together
-//     RTreePolicy aggregatepolicy = pathpolicies[0];
-//     OssString *finalsubject = pathEndEntities[0];
-//     vector<RTreePolicy> v(pathpolicies.begin()+1, pathpolicies.end());
-//     for (int idx = 0; idx < pathpolicies.size(); idx++) {
-//         if (memcmp(finalsubject->get_buffer(), pathEndEntities[idx]->get_buffer(), finalsubject->length())) {
-//             verifyError("paths don't terminate at same entity");
-//         }
-//         // gofunc: Union
-//         string rhs_ns = HashSchemeInstanceFor(pathpolicies[idx]);
-//         string lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
-//         // not doing multihash
-//         if (rhs_ns.compare(lhs_ns) != 0) {
-//             verifyError("different authority domain");
-//         }
-//         vector<RTreeStatementItem> statements;
-//         RTreePolicy::statements lhsStatements = aggregatepolicy.get_statements();
-//         appendStatements(&statements, &lhsStatements);
-//         RTreePolicy::statements rhsStatements = pathpolicies[idx].get_statements();
-//         appendStatements(&statements, &rhsStatements);
-//         vector<RTreeStatementItem> dedup_statements;
-//         computeStatements(&statements, &dedup_statements);
-//         int indirections;
-//         if (pathpolicies[idx].get_indirections() < aggregatepolicy.get_indirections()) {
-//             indirections = pathpolicies[idx].get_indirections();
-//         }
-//         if (dedup_statements.size() > PermittedCombinedStatements) {
-//             verifyError("statements form too many combinations");
-//         }
-//     }
-//     return 0;
+
+    // Now combine the policies together
+    cout << "paths verified, now combining the policies\n";
+    RTreePolicy_t *aggregatepolicy = pathpolicies[0];
+    OCTET_STRING_t *finalsubject = pathEndEntities[0];
+    vector<RTreePolicy_t *> v(pathpolicies.begin()+1, pathpolicies.end());
+    for (int idx = 0; idx < pathpolicies.size(); idx++) {
+        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities[idx])) {
+            verifyError("paths don't terminate at same entity");
+        }
+        // gofunc: Union
+        OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies[idx]);
+        OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
+        // not doing multihash
+        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
+            verifyError("different authority domain");
+        }
+        vector<RTreeStatementItem> statements;
+        RTreePolicy_t::RTreePolicy__statements *lhsStatements = &aggregatepolicy->statements;
+        appendStatements(&statements, lhsStatements);
+        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &pathpolicies[idx]->statements;
+        appendStatements(&statements, rhsStatements);
+        vector<RTreeStatementItem> dedup_statements;
+        computeStatements(&statements, &dedup_statements);
+        int indirections;
+        if (pathpolicies[idx]->indirections < aggregatepolicy->indirections) {
+            indirections = pathpolicies[idx]->indirections;
+        }
+        if (dedup_statements.size() > PermittedCombinedStatements) {
+            verifyError("statements form too many combinations");
+        }
+    }
+    return 0;
 }

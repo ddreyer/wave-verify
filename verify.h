@@ -65,17 +65,17 @@ public:
     AttestationVerifierBody_t * get_body();
 };
 
-// class RTreeStatementItem {
-// private:
-//     struct RTreeStatement_t rTreeStatement;
-//     std::list<std::string> permissions;
-//     std::string intersectionResource;
-// public:
-//     RTreeStatementItem(RTreeStatement::permissionSet pSet, std::list<std::string> perms, std::string iResource);
-//     RTreeStatement::permissionSet get_permissionSet();
-//     std::list<std::string> get_permissions();
-//     std::string get_interResource();
-// };
+class RTreeStatementItem {
+private:
+    EntityHash_t *permissionSet;
+    std::list<std::string> permissions;
+    std::string intersectionResource;
+public:
+    RTreeStatementItem(EntityHash_t *pSet, std::list<std::string> perms, std::string iResource);
+    EntityHash_t * get_permissionSet();
+    std::list<std::string> get_permissions();
+    std::string get_interResource();
+};
 
 int verify(std::string pemContent);
 

@@ -88,6 +88,12 @@
         "functional": "cpp",
         "tuple": "cpp",
         "__config": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "cstdarg": "cpp",
+        "ctime": "cpp",
+        "numeric": "cpp",
+        "sstream": "cpp",
+        "stdexcept": "cpp",
+        "cinttypes": "cpp"
     }
 }
