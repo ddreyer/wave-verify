@@ -517,7 +517,7 @@ int verify(string pemContent) {
 
     // retrieve attestations
     WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
-    cout << "attestations retrieved\n";
+    cout << "attestations retrieved\n\n";
     vector<AttestationItem> attestationList;
     int attIndex = 0;
     while (attIndex < atsts.list.count) {
@@ -617,7 +617,7 @@ int verify(string pemContent) {
                 } else {
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
-                    cout << "aes decryption succeeded\n";
+                    cout << "aes decryption succeeded";
                 }
                 mbedtls_gcm_free(&ctx);
 
@@ -755,7 +755,7 @@ int verify(string pemContent) {
         attestationList.push_back(aItem);
     }
 
-    cout << "Finished parsing attestations\n";
+    cout << "Finished parsing attestations\n\n";
 
     // now verify the paths
     vector<RTreePolicy_t *> pathpolicies;
