@@ -2,13 +2,20 @@
 
 using namespace std;
 
+/* hardcoded proof file to read from */
 string proofFile("proof.pem");
 
 int main() {
     cout << "Reading in PEM file\n";
 
-    ifstream t(proofFile);
-    string pemStr((istreambuf_iterator<char>(t)),
+    ifstream file;
+    try {
+        file.open(proofFile);
+    } catch (const ifstream::failure& e) {
+        cerr << "exception opening/reading proof file " << proofFile << "\n";
+        return -1;
+    }
+    string pemStr((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
     // extract proof content from .pem file

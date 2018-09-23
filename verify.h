@@ -3,56 +3,28 @@
 
 #include <fstream>
 #include <streambuf>
-#include <iostream>
 #include <sstream>
 #include <stdio.h>
-#include <string.h>
 #include <algorithm>
-#include <string>
 #include <list>
 #include <unordered_map>
 #include <vector>
 
-#include <WaveEntity.h>
-#include <WaveEntitySecret.h>
-#include <WaveAttestation.h>
-#include <AttestationVerifierBody.h>
-#include <AttestationBody.h>
-#include <RTreeStatement.h>
-#include <WaveWireObject.h>
-#include <WaveExplicitProof.h>
-#include <Public-Ed25519.h>
-#include <Public-Curve25519.h>
-#include <Params-BN256-IBE.h>
-#include <Params-BN256-OAQUE.h>
-#include <Public-BN256-IBE.h>
-#include <Public-OAQUE.h>
-#include <AVKeyAES128-GCM.h>
-#include <HashKeccak-256.h>
-#include <HashSha3-256.h>
-#include <WR1BodyCiphertext.h>
-#include <WR1VerifierBody.h>
-#include <SignedOuterKey.h>
-#include <LocationURL.h>
-#include <HashKeccak-256.h>
-#include <HashSha3-256.h>
-#include <Ed25519OuterSignature.h>
-#include <RTreePolicy.h>
-#include <RTreeStatement.h>
-#include <TrustLevel.h>
-
+#include "asn.h"
 #include "aes-gcm/gcm.h"
 #include "ed25519/src/ed25519.h"
 #include "hash-library/keccak.h"
 
+using namespace std;
+
 class EntityItem {
 private:
     WaveEntity_t *entity;
-    std::string entityDer;
+    string entityDer;
 public:
-    EntityItem(WaveEntity_t *entity, std::string entityDer);
+    EntityItem(WaveEntity_t *entity, string entityDer);
     WaveEntity_t * get_entity();
-    std::string get_der();
+    string get_der();
 };
 
 class AttestationItem {
@@ -68,15 +40,15 @@ public:
 class RTreeStatementItem {
 private:
     EntityHash_t *permissionSet;
-    std::list<std::string> permissions;
-    std::string intersectionResource;
+    list<string> permissions;
+    string intersectionResource;
 public:
-    RTreeStatementItem(EntityHash_t *pSet, std::list<std::string> perms, std::string iResource);
+    RTreeStatementItem(EntityHash_t *pSet, list<string> perms, string iResource);
     EntityHash_t * get_permissionSet();
-    std::list<std::string> get_permissions();
-    std::string get_interResource();
+    list<string> get_permissions();
+    string get_interResource();
 };
 
-int verify(std::string pemContent);
+int verify(string pemContent);
 
 #endif
