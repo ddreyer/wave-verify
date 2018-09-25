@@ -18,23 +18,23 @@ BEGIN
   }
 
   WaveAttestationTbs ::= SEQUENCE {
-      -- the subject of the attestation, who is receiving permissions or
-      -- having a property attested to
-      subject EntityHash,
-      subjectLocation Location,
+    -- the subject of the attestation, who is receiving permissions or
+    -- having a property attested to
+    subject EntityHash,
+    subjectLocation Location,
 
-      -- how this attestation revoked
-      revocations SEQUENCE OF RevocationOption,
-      -- extensions that are visible without any decryption of the
-      -- attestation
-      publicExtensions SEQUENCE OF Extension,
-      -- The main content of the attestation SHOULD be encrypted using
-      -- a scheme that permits provers and verifiers to decrypt it but
-      -- nobody else. The result of decrypting this MUST be an
-      -- AttestationBody object but depending on the context of the
-      -- decryption (e.g prover vs verifier) the contents of that
-      -- AttestationBody object may differ.
-      body EXTERNAL
+    -- how this attestation revoked
+    revocations SEQUENCE OF RevocationOption,
+    -- extensions that are visible without any decryption of the
+    -- attestation
+    publicExtensions SEQUENCE OF Extension,
+    -- The main content of the attestation SHOULD be encrypted using
+    -- a scheme that permits provers and verifiers to decrypt it but
+    -- nobody else. The result of decrypting this MUST be an
+    -- AttestationBody object but depending on the context of the
+    -- decryption (e.g prover vs verifier) the contents of that
+    -- AttestationBody object may differ.
+    body EXTERNAL
   }
 
   -- An arbitrary message encrypted using WAVE
@@ -136,20 +136,20 @@ BEGIN
   }
 
   WaveEntityTbs ::= SEQUENCE {
-      -- the canonical certification and attestation key. This is what is used
-      -- to sign attestation outerSignatureBindings, and to sign this object
-      verifyingKey EntityPublicKey,
-      -- other public keys
-      keys SEQUENCE OF EntityPublicKey,
-      -- when is this entity valid
-      validity SEQUENCE {
-        notBefore UTCTime,
-        notAfter UTCTime
-      },
-      -- revocations
-      revocations SEQUENCE OF RevocationOption,
-      -- extensions
-      extensions SEQUENCE OF Extension
+    -- the canonical certification and attestation key. This is what is used
+    -- to sign attestation outerSignatureBindings, and to sign this object
+    verifyingKey EntityPublicKey,
+    -- other public keys
+    keys SEQUENCE OF EntityPublicKey,
+    -- when is this entity valid
+    validity SEQUENCE {
+      notBefore UTCTime,
+      notAfter UTCTime
+    },
+    -- revocations
+    revocations SEQUENCE OF RevocationOption,
+    -- extensions
+    extensions SEQUENCE OF Extension
   }
 
   WaveEntitySecret ::= SEQUENCE {
@@ -247,6 +247,7 @@ BEGIN
     -- the namespace, common to all statements. This also becomes the
     -- WR1 domain for visibility control if wr1 is used
     namespace EntityHash,
+    namespaceLocation Location,
     -- specifically for use with WR1, this controls who can see the
     -- attestation
     -- this is a virtual field, there must exist some function
@@ -390,7 +391,14 @@ BEGIN
     -- key: ECDH (outer signature key, subject key)
     -- this permits reading the envelope if you are the direct
     -- recipient, even without knowing the namespace
-    envelopeKey-curve25519 OCTET STRING
+    envelopeKey-curve25519 OCTET STRING,
+
+    -- content prover/verifierBodyKeys	
+    -- encryption algorithm: AES128	
+    -- key: ECDH (outer signature key, attester key)	
+    -- this permits reading the attestation if you are the attester	
+    -- even without knowing the namespace	
+    envelopeKey-curve25519-attester OCTET STRING
   }
 
   WR1Envelope ::= SEQUENCE {
@@ -433,8 +441,8 @@ BEGIN
   }
 
   SignedOuterKeyTbs ::= SEQUENCE {
-      outerSignatureScheme OBJECT IDENTIFIER,
-      verifyingKey OCTET STRING
+    outerSignatureScheme OBJECT IDENTIFIER,
+    verifyingKey OCTET STRING
   }
 
   TrustLevel ::= SEQUENCE {

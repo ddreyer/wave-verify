@@ -401,8 +401,8 @@ int verify(string pemContent) {
             }
 
             // gofunc: Verify
-            // string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
-            // cout << "len: " << eData.length() << "\n";
+            string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
+            cout << "len: " << string_to_hex(eData) << "\n";
             // string entSig((const char *) entity->signature.buf, entity->signature.size);
             // string ksStr((const char *) ks->buf, ks->size);
             // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 

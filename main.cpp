@@ -2,12 +2,13 @@
 
 using namespace std;
 
-/* hardcoded proof file to read from */
-string proofFile("proof.pem");
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        cerr << "invalid command line arguments: needs a proof file\n";
+        return -1;
+    }
 
-int main() {
-    cout << "Reading in PEM file\n";
-
+    string proofFile = argv[1];
     ifstream file;
     try {
         file.open(proofFile);
@@ -15,6 +16,7 @@ int main() {
         cerr << "exception opening/reading proof file " << proofFile << "\n";
         return -1;
     }
+    cout << "success reading " << proofFile << "\n";
     string pemStr((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 

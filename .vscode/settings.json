@@ -94,6 +94,7 @@
         "numeric": "cpp",
         "sstream": "cpp",
         "stdexcept": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "rtreepolicy.h": "c"
     }
 }
