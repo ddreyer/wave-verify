@@ -39,8 +39,8 @@ asn_enc_rval_t xer_encode(const struct asn_TYPE_descriptor_s *type_descriptor,
  * 	-1: Problem printing the structure.
  * WARNING: No sensible errno value is returned.
  */
-int xer_fprint(FILE *stream, const struct asn_TYPE_descriptor_s *td,
-               const void *struct_ptr);
+// int xer_fprint(FILE *stream, const struct asn_TYPE_descriptor_s *td,
+//                const void *struct_ptr);
 
 /*
  * A helper function that uses XER encoding/decoding to verify that:
@@ -60,9 +60,9 @@ enum xer_equivalence_e {
     XEQ_DECODE_FAILED,    /* Decode of the XER data failed */
     XEQ_ROUND_TRIP_FAILED /* Bad round-trip */
 };
-enum xer_equivalence_e xer_equivalent(
-    const struct asn_TYPE_descriptor_s *type_descriptor, const void *struct1,
-    const void *struct2, FILE *opt_debug_stream);
+// enum xer_equivalence_e xer_equivalent(
+//     const struct asn_TYPE_descriptor_s *type_descriptor, const void *struct1,
+//     const void *struct2, FILE *opt_debug_stream);
 
 /*
  * Type of the generic XER encoder.

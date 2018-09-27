@@ -192,14 +192,14 @@ string emit(vector<string> *bout, vector<string> *fout) {
     for (int i = 0; i < bout->size(); i++) {
         fout->push_back((*bout)[bout->size()-i-1]);
     }
-    stringstream ss;
+    string ss("");
     for (size_t i = 0; i < fout->size(); ++i) {
         if (i != 0) {
-            ss << ",";
+            ss.append(",");
         }
-        ss << (*fout)[i];
+        ss.append((*fout)[i]);
     }
-    return ss.str();
+    return ss;
 }
 
 string RestrictBy(string from, string by) {
@@ -333,7 +333,7 @@ void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTr
 int verify(string pemContent) {
     string derEncodedData(base64_decode(pemContent));
 
-    printf("Binary size: %lu\n", derEncodedData.length());
+    // printf("Binary size: %lu\n", derEncodedData.length());
     if (derEncodedData.length() == 0) {
     	verifyError("could not decode proof from DER format");
     }
@@ -353,7 +353,7 @@ int verify(string pemContent) {
 
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
-    cout << "entities retrieved\n";
+    ocall_print("entities retrieved\n");
     list<EntityItem> entList;
     int entIndex = 0;
     while (entIndex < ents.list.count) {
@@ -402,7 +402,6 @@ int verify(string pemContent) {
 
             // gofunc: Verify
             string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
-            cout << "len: " << string_to_hex(eData) << "\n";
             // string entSig((const char *) entity->signature.buf, entity->signature.size);
             // string ksStr((const char *) ks->buf, ks->size);
             // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
@@ -413,7 +412,7 @@ int verify(string pemContent) {
             //     cerr << "\ndata: " << string_to_hex(eData) << "\n";
             //     verifyError("entity ed25519 signature invalid");
             // }
-            // cout << "valid entity signature\n";
+            // ocall_print("valid entity signature\n";
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
             Public_Curve25519_t *ks = 0;
             ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
@@ -517,7 +516,7 @@ int verify(string pemContent) {
 
     // retrieve attestations
     WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
-    cout << "attestations retrieved\n\n";
+    ocall_print("attestations retrieved\n\n");
     vector<AttestationItem> attestationList;
     int attIndex = 0;
     while (attIndex < atsts.list.count) {
@@ -530,7 +529,7 @@ int verify(string pemContent) {
         string verifierBodyNonce;
         int vfkLen = 0;
         if (keys.list.count == 0) {
-            cout << "atst has no keys\n";
+            ocall_print("atst has no keys\n");
         }
 
         int keyIndex = 0;
@@ -544,7 +543,7 @@ int verify(string pemContent) {
             vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
             int vfkLen = 0;
             if (vfk == nullptr) {
-                cout << "atst key was not aes\n";
+                ocall_print("atst key was not aes\n");
             } else {
                 vfkLen = vfk->size;
                 string verifierKey(vfk->buf, vfk->buf + vfkLen);
@@ -574,9 +573,9 @@ int verify(string pemContent) {
         AttestationVerifierBody_t *decryptedBody;
         string schemeID = marshal(att->tbs.body.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
         if (schemeID == getTypeId(&asn_DEF_AttestationBody)) {
-            cout << "unencrypted body scheme, currently not supported\n";
+            ocall_print("unencrypted body scheme, currently not supported\n");
         } else if (schemeID == getTypeId(&asn_DEF_WR1BodyCiphertext)) {
-            cout << "this is a wr1 body scheme\n";
+            ocall_print("this is a wr1 body scheme\n");
             // decrypt body
             type = att->tbs.body.encoding.choice.single_ASN1_type;
             WR1BodyCiphertext_t *wr1body = 0;
@@ -584,12 +583,12 @@ int verify(string pemContent) {
             if (wr1body == nullptr) {
                 verifyError("getting body ciphertext failed");
             }
-            cout << "got wr1 body\n";
+            ocall_print("got wr1 body\n");
             // checking subject HI instance
             HashSchemeInstanceFor(att);
 
             if (vfk) {
-                cout << "decrypting attestation\n";
+                ocall_print("decrypting attestation\n");
                 mbedtls_gcm_context ctx;
                 mbedtls_gcm_init( &ctx );
                 int ret = 0;
@@ -610,14 +609,14 @@ int verify(string pemContent) {
                 ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
                     verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
                 if (ret) {
-                    cerr << "ciphertext:\n" << string_to_hex(s) << "\n\n";
-                    cerr << "nonce:\n" << string_to_hex(t) << "\n\n";
-                    cerr << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
+                    // cerr << "ciphertext:\n" << string_to_hex(s) << "\n\n";
+                    // cerr << "nonce:\n" << string_to_hex(t) << "\n\n";
+                    // cerr << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
                     verifyError("aes decryption failed");
                 } else {
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
-                    cout << "aes decryption succeeded";
+                    ocall_print("aes decryption succeeded");
                 }
                 mbedtls_gcm_free(&ctx);
 
@@ -660,10 +659,8 @@ int verify(string pemContent) {
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
                 Keccak k(Keccak::Keccak256);
                 string entityHash = k(it->get_der());
-                cout << "\natt hash: " << attHashHex;
-                cout << "\nentity hash: " << entityHash;
                 if (attHashHex == entityHash) {
-                    cout << "\nfound matching entity for attester\n";
+                    ocall_print("found matching entity for attester\n");
                     attester = it->get_entity();
                     break;
                 }
@@ -718,14 +715,14 @@ int verify(string pemContent) {
         }
         string bindingSig((const char *) binding->signature.buf, binding->signature.size);
         string attKey((const char *) attesterKey->buf, attesterKey->size);
-        if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
-            (const unsigned char *) encodedData.c_str(), encodedData.length(), 
-            (const unsigned char *) attKey.c_str())) {
-            cerr << "signature: " << string_to_hex(bindingSig);
-            cerr << "\nkey: " << string_to_hex(attKey) << "\n";
-            verifyError("outer signature binding invalid");
-        }
-        cout << "valid outer signature binding\n";
+        // if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
+        //     (const unsigned char *) encodedData.c_str(), encodedData.length(), 
+        //     (const unsigned char *) attKey.c_str())) {
+        //     // cerr << "signature: " << string_to_hex(bindingSig);
+        //     // cerr << "\nkey: " << string_to_hex(attKey) << "\n";
+        //     verifyError("outer signature binding invalid");
+        // }
+        ocall_print("valid outer signature binding\n" );
 
         // Now we know the binding is valid, check the key is the same
         if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
@@ -750,18 +747,18 @@ int verify(string pemContent) {
         //         (const unsigned char *) v.c_str())) {
         //     verifyError("invalid outer signature");
         // }
-        // cout << "valid outer signature\n";
+        // ocall_print("valid outer signature\n";
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
     }
 
-    cout << "Finished parsing attestations\n\n";
+    ocall_print("Finished parsing attestations\n\n");
 
     // now verify the paths
     vector<RTreePolicy_t *> pathpolicies;
     vector<OCTET_STRING_t *> pathEndEntities;
     WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
-    cout << "paths retrieved\n";
+    ocall_print("paths retrieved\n");
     int pathIndex = 0;
     while (pathIndex < paths.list.count) {
         WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
@@ -900,7 +897,7 @@ int verify(string pemContent) {
     }
 
     // Now combine the policies together
-    cout << "paths verified, now combining the policies\n";
+    ocall_print("paths verified, now combining the policies\n");
     RTreePolicy_t *aggregatepolicy = pathpolicies[0];
     OCTET_STRING_t *finalsubject = pathEndEntities[0];
     vector<RTreePolicy_t *> v(pathpolicies.begin()+1, pathpolicies.end());

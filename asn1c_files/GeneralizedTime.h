@@ -6,6 +6,7 @@
 #define	_GeneralizedTime_H_
 
 #include <OCTET_STRING.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {

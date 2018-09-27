@@ -58,19 +58,19 @@ ber_fetch_tag(const void *ptr, size_t size, ber_tlv_tag_t *tag_r) {
 }
 
 
-ssize_t
-ber_tlv_tag_fwrite(ber_tlv_tag_t tag, FILE *f) {
-	char buf[sizeof("[APPLICATION ]") + 32];
-	ssize_t ret;
+// ssize_t
+// ber_tlv_tag_fwrite(ber_tlv_tag_t tag, FILE *f) {
+// 	char buf[sizeof("[APPLICATION ]") + 32];
+// 	ssize_t ret;
 
-	ret = ber_tlv_tag_snprint(tag, buf, sizeof(buf));
-	if(ret >= (ssize_t)sizeof(buf) || ret < 2) {
-		errno = EPERM;
-		return -1;
-	}
+// 	ret = ber_tlv_tag_snprint(tag, buf, sizeof(buf));
+// 	if(ret >= (ssize_t)sizeof(buf) || ret < 2) {
+// 		errno = EPERM;
+// 		return -1;
+// 	}
 
-	return fwrite(buf, 1, ret, f);
-}
+// 	return fwrite(buf, 1, ret, f);
+// }
 
 ssize_t
 ber_tlv_tag_snprint(ber_tlv_tag_t tag, char *buf, size_t size) {

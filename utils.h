@@ -2,6 +2,9 @@
 #define __UTILS_H_INCLUDED__
 
 #include <iostream>
+#include <string>
+#include <string.h>
+#include "Enclave_t.h"
 
 using namespace std;
 
@@ -21,6 +24,6 @@ void verifyError(string errMessage);
 /* useful functions for debugging */
 string string_to_hex(const string& input);
 
-void hexdump(void *ptr, int buflen);
+// void hexdump(void *ptr, int buflen);
 
 #endif
