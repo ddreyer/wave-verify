@@ -524,7 +524,7 @@ int verify(string pemContent) {
         attIndex++;
 
         AttestationReference_t::AttestationReference__keys keys = atst->keys;
-        char *vfk;
+        AVKeyAES128_GCM_t *vfk = 0;
         string verifierBodyKey;
         string verifierBodyNonce;
         int vfkLen = 0;
@@ -539,7 +539,6 @@ int verify(string pemContent) {
              */
             AttestationVerifierKey_t *key = (AttestationVerifierKey_t *) keys.list.array[keyIndex];
             ANY_t type = key->encoding.choice.single_ASN1_type;
-            AVKeyAES128_GCM_t *vfk = 0;
             vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
             int vfkLen = 0;
             if (vfk == nullptr) {
@@ -587,7 +586,7 @@ int verify(string pemContent) {
             // checking subject HI instance
             HashSchemeInstanceFor(att);
 
-            if (vfk) {
+            if (vfk != nullptr) {
                 cout << "decrypting attestation\n";
                 mbedtls_gcm_context ctx;
                 mbedtls_gcm_init( &ctx );
@@ -695,8 +694,6 @@ int verify(string pemContent) {
         if (osig == nullptr) {
             verifyError("unknown outer signature type/signature scheme not supported");
         }
-        xer_fprint(stdout, &asn_DEF_WaveAttestation, att);
-        xer_fprint(stdout, &asn_DEF_Ed25519OuterSignature, osig);
 
         if (attester == nullptr) {
             verifyError("no attester");
@@ -745,24 +742,16 @@ int verify(string pemContent) {
         OCTET_STRING_t sig = osig->signature;
         string s((const char *) sig.buf, sig.size);
         string v((const char *) vKey.buf, vKey.size);
-        // cout << "sig\n";
-        // hexdump((void *) s.c_str(), s.length());
-        // cout << "key\n";
-        // hexdump((void *) v.c_str(), v.length());
-        // cout << "data\n";
-        // cout << encData.length();
-        // hexdump((void *) encData.c_str(), encData.length());
-        // return 0;
-        // /* verify the signature */
-        // if (!ed25519_verify((const unsigned char *) s.c_str(), 
-        //         (const unsigned char *) encData.c_str(), encData.length(), 
-        //         (const unsigned char *) v.c_str())) {
-        //     cerr << "\nsig: " << string_to_hex(s);
-        //     cerr << "\nkey: " << string_to_hex(v);
-        //     cerr << "\ndata: " << string_to_hex(encData) << "\n";
-        //     verifyError("invalid outer signature");
-        // }
-        // cout << "valid outer signature\n";
+        /* verify the signature */
+        if (!ed25519_verify((const unsigned char *) s.c_str(), 
+                (const unsigned char *) encData.c_str(), encData.length(), 
+                (const unsigned char *) v.c_str())) {
+            cerr << "\nsig: " << string_to_hex(s);
+            cerr << "\nkey: " << string_to_hex(v);
+            cerr << "\ndata: " << string_to_hex(encData) << "\n";
+            verifyError("invalid outer signature");
+        }
+        cout << "valid outer signature\n";
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
     }
