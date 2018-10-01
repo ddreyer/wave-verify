@@ -32,7 +32,7 @@ typedef unsigned ber_tlv_tag_t;	/* BER TAG from Tag-Length-Value */
  * Return values correspond to their libc counterparts (if any).
  */
 ssize_t ber_tlv_tag_snprint(ber_tlv_tag_t tag, char *buf, size_t buflen);
-ssize_t ber_tlv_tag_fwrite(ber_tlv_tag_t tag, FILE *);
+// ssize_t ber_tlv_tag_fwrite(ber_tlv_tag_t tag, FILE *);
 char *ber_tlv_tag_string(ber_tlv_tag_t tag);
 
 

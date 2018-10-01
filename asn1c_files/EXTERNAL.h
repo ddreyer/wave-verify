@@ -21,6 +21,8 @@
 #include <constr_CHOICE.h>
 #include <constr_SEQUENCE.h>
 
+#include <time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
