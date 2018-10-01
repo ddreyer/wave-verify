@@ -113,6 +113,6 @@ string marshal(void *obj, asn_TYPE_descriptor_t *asnType) {
     enc_buffer_t enc_buf;
     init_enc_buffer(&enc_buf);
     encode_to_buffer(&enc_buf, asnType, obj);
-    string enc((char *) enc_buf.buffer);
+    string enc((char *) enc_buf.buffer, enc_buf.buffer_filled);
     return enc;
 }

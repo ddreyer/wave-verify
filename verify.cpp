@@ -402,18 +402,17 @@ int verify(string pemContent) {
 
             // gofunc: Verify
             string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
-            cout << "len: " << string_to_hex(eData) << "\n";
-            // string entSig((const char *) entity->signature.buf, entity->signature.size);
-            // string ksStr((const char *) ks->buf, ks->size);
-            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-            //     (const unsigned char *) eData.c_str(), eData.length(), 
-            //     (const unsigned char *) ksStr.c_str())) {
-            //     cerr << "\nsig: " << string_to_hex(entSig);
-            //     cerr << "\nkey: " << string_to_hex(ksStr);
-            //     cerr << "\ndata: " << string_to_hex(eData) << "\n";
-            //     verifyError("entity ed25519 signature invalid");
-            // }
-            // cout << "valid entity signature\n";
+            string entSig((const char *) entity->signature.buf, entity->signature.size);
+            string ksStr((const char *) ks->buf, ks->size);
+            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+                (const unsigned char *) eData.c_str(), eData.length(), 
+                (const unsigned char *) ksStr.c_str())) {
+                cerr << "\nsig: " << string_to_hex(entSig);
+                cerr << "\nkey: " << string_to_hex(ksStr);
+                cerr << "\ndata: " << string_to_hex(eData) << "\n";
+                verifyError("entity ed25519 signature invalid");
+            }
+            cout << "valid entity signature\n";
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
             Public_Curve25519_t *ks = 0;
             ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
@@ -696,6 +695,8 @@ int verify(string pemContent) {
         if (osig == nullptr) {
             verifyError("unknown outer signature type/signature scheme not supported");
         }
+        xer_fprint(stdout, &asn_DEF_WaveAttestation, att);
+        xer_fprint(stdout, &asn_DEF_Ed25519OuterSignature, osig);
 
         if (attester == nullptr) {
             verifyError("no attester");
@@ -744,10 +745,21 @@ int verify(string pemContent) {
         OCTET_STRING_t sig = osig->signature;
         string s((const char *) sig.buf, sig.size);
         string v((const char *) vKey.buf, vKey.size);
-        /* verify the signature */
+        // cout << "sig\n";
+        // hexdump((void *) s.c_str(), s.length());
+        // cout << "key\n";
+        // hexdump((void *) v.c_str(), v.length());
+        // cout << "data\n";
+        // cout << encData.length();
+        // hexdump((void *) encData.c_str(), encData.length());
+        // return 0;
+        // /* verify the signature */
         // if (!ed25519_verify((const unsigned char *) s.c_str(), 
         //         (const unsigned char *) encData.c_str(), encData.length(), 
         //         (const unsigned char *) v.c_str())) {
+        //     cerr << "\nsig: " << string_to_hex(s);
+        //     cerr << "\nkey: " << string_to_hex(v);
+        //     cerr << "\ndata: " << string_to_hex(encData) << "\n";
         //     verifyError("invalid outer signature");
         // }
         // cout << "valid outer signature\n";
