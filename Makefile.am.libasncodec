@@ -31,22 +31,21 @@ ASN_MODULE_SRCS=	\
 	asn1c_files/LocationURL.c	\
 	asn1c_files/LocationEthereum.c	\
 	asn1c_files/PSKBodyCiphertext.c	\
-	asn1c_files/Waveasn1c_files/NameDeclaration.c	\
 	asn1c_files/NameDeclarationKey.c	\
 	asn1c_files/NameDeclarationBody.c	\
 	asn1c_files/NameDeclarationKeyNone.c	\
 	asn1c_files/NameDeclarationKeyWR1.c	\
 	asn1c_files/NameDeclarationWR1Envelope.c	\
 	asn1c_files/WR1BodyCiphertext.c	\
-	WR1Envelope.c	\
-	WR1ProverBody.c	\
-	WR1VerifierBody.c	\
+	asn1c_files/WR1Envelope.c	\
+	asn1c_files/WR1ProverBody.c	\
+	asn1c_files/WR1VerifierBody.c	\
 	asn1c_files/Ed25519OuterSignature.c	\
 	asn1c_files/Signature.c	\
 	asn1c_files/SignedOuterKey.c	\
-	TrustLevel.c	\
-	Commitmentasn1c_files/RevocationOption.c	\
-	AVKeyAES128-GCM.c	\
+	asn1c_files/TrustLevel.c	\
+	asn1c_files/RevocationOption.c	\
+	asn1c_files/AVKeyAES128-GCM.c	\
 	asn1c_files/Private-Ed25519.c	\
 	asn1c_files/Private-Curve25519.c	\
 	asn1c_files/Private-asn1c_files/BN256-OAQUE.c	\
@@ -59,7 +58,7 @@ ASN_MODULE_SRCS=	\
 	asn1c_files/Params-BN256-OAQUE.c	\
 	asn1c_files/Params-BN256-IBE.c	\
 	asn1c_files/Public-BN256-IBE.c	\
-	KeyringAESCiphertext.c	\
+	asn1c_files/KeyringAESCiphertext.c	\
 	asn1c_files/MessageKeyCurve25519ECDH.c	\
 	asn1c_files/MessageKeyWR1.c	\
 	asn1c_files/MessageKeyWR1Envelope.c	\
