@@ -607,36 +607,29 @@ int verify(string pemContent) {
 
             if (vfk != nullptr) {
                 ocall_print("decrypting attestation\n");
-                mbedtls_gcm_context ctx;
-                mbedtls_gcm_init( &ctx );
-                int ret = 0;
-                ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
-                    (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
-                if (ret) {
-                    return verifyError("aes set key failed");
-                }
-        
                 OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
-                const unsigned char additional[] = {};
                 int bodyLen = vbodyCipher.size;
                 unsigned char verifierBodyDER[bodyLen];
-                unsigned char tag_buf[16];
-                
-                string s((const char *) vbodyCipher.buf, bodyLen);
-                string t(verifierBodyNonce.c_str(), 12);
-                ret = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_DECRYPT, bodyLen, (const unsigned char *) verifierBodyNonce.c_str(), 
-                    verifierBodyNonce.length(), additional, 0, (const unsigned char *) s.c_str(), verifierBodyDER, 16, tag_buf);
-                if (ret) {
-                    // cerr << "ciphertext:\n" << string_to_hex(s) << "\n\n";
-                    // cerr << "nonce:\n" << string_to_hex(t) << "\n\n";
-                    // cerr << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
+
+                EVP_CIPHER_CTX *ctx;
+                int outlen, ret;
+                ctx = EVP_CIPHER_CTX_new();
+                /* Select cipher */
+                EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
+                /* Specify key and IV */
+                EVP_DecryptInit_ex(ctx, NULL, NULL, (const unsigned char *) verifierBodyKey.c_str(), (const unsigned char *) verifierBodyNonce.c_str());
+                /* Decrypt plaintext */
+                ret = EVP_DecryptUpdate(ctx, verifierBodyDER, &outlen, vbodyCipher.buf, bodyLen);
+                if (!ret) {
                     return verifyError("aes decryption failed");
                 } else {
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
                     ocall_print("aes decryption succeeded");
                 }
-                mbedtls_gcm_free(&ctx);
+                EVP_CIPHER_CTX_free(ctx);
+                // free space on the heap for enclave
+                asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
 
                 //unmarshal into WR1VerifierBody
                 WR1VerifierBody_t *vbody = 0;

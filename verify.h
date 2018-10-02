@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "asn.h"
-#include "aes-gcm/gcm.h"
+#include <openssl/evp.h>
 #include "ed25519/src/ed25519.h"
 #include "hash-library/keccak.h"
 
