@@ -43,9 +43,9 @@ string base64_decode(string const& encoded_string) {
     return ret;
 }
 
-void verifyError(string errMessage) {
+int verifyError(string errMessage) {
     ocall_print(errMessage.c_str());
-    // return -1;
+    return -1;
 }
 
 string string_to_hex(const string& input) {

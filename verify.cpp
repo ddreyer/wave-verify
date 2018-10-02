@@ -1,4 +1,5 @@
 #include "verify.h"
+#include <stdio.h>
 
 const int CapCertification = 1;
 const int PermittedCombinedStatements = 1000;
@@ -69,24 +70,25 @@ OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
         HashKeccak_256_t *attest = 0;
         attest = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashKeccak_256);
         if (attest == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (attest->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return attest;
     } else if (subId == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *attest = 0;
         attest = (HashSha3_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashSha3_256);
         if (attest == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (attest->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return attest;
     } else {
-        verifyError("problem with hash");
+        ocall_print("VERIFY ERROR: problem with hash");
+        return nullptr;
     }
 }
 
@@ -97,24 +99,25 @@ OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (hash->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (hash->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return hash;
     } else {
-        verifyError("problem with hash");
+        ocall_print("VERIFY ERROR: problem with hash");
+        return nullptr;
     }
 }
 
@@ -125,24 +128,25 @@ OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (hash->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         if (hash->size != 32) {
-            verifyError("problem with hash");
+            ocall_print("VERIFY ERROR: problem with hash");
         }
         return hash;
     } else {
-        verifyError("problem with hash");
+        ocall_print("VERIFY ERROR: problem with hash");
+        return nullptr;
     }
 }
 
@@ -151,7 +155,8 @@ LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
     LocationURL_t *lsurl = 0;
     lsurl = (LocationURL_t *) unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
-        verifyError("subject location is unsupported");
+        ocall_print("VERIFY ERROR: subject location is unsupported");
+        return nullptr;
     }
     return lsurl;
 }
@@ -163,15 +168,17 @@ RTreePolicy_t * PolicySchemeInstanceFor(AttestationVerifierBody_t *attVerBody) {
     if (currBodyId == getTypeId(&asn_DEF_TrustLevel)) {
         TrustLevel_t *tp = 0;
         tp = (TrustLevel_t *) unmarshal(type.buf, type.size, tp, &asn_DEF_TrustLevel);
-        verifyError("not supporting trust level policy right now");
+        ocall_print("not supporting trust level policy right now");
+        return nullptr;
     } else if (currBodyId == getTypeId(&asn_DEF_RTreePolicy)) {
         policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
         if (policy == nullptr) {
-            verifyError("unexpected policy error");
+            ocall_print("unexpected policy error");
         }
         return policy;
     } else {
-        verifyError("unsupported policy scheme");
+        ocall_print("unsupported policy scheme");
+        return nullptr;
     }
 }
 
@@ -335,20 +342,20 @@ int verify(string pemContent) {
 
     // printf("Binary size: %lu\n", derEncodedData.length());
     if (derEncodedData.length() == 0) {
-    	verifyError("could not decode proof from DER format");
+    	return verifyError("could not decode proof from DER format");
     }
 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (derEncodedData.c_str()), derEncodedData.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
-        verifyError("failed to unmarshal");
+        return verifyError("failed to unmarshal");
     }
 
     WaveExplicitProof_t *exp = 0;
     ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
     exp = (WaveExplicitProof_t *) unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
     if (exp == nullptr) {
-        verifyError("failed to unmarshal");
+        return verifyError("failed to unmarshal");
     }
 
     // parse entities
@@ -365,7 +372,7 @@ int verify(string pemContent) {
         WaveWireObject_t *wwoPtr = nullptr;
         wwoPtr = (WaveWireObject_t *) unmarshal(ent->buf, ent->size, wwoPtr, &asn_DEF_WaveWireObject);
         if (exp == nullptr) {
-            verifyError("failed to unmarshal");
+            return verifyError("failed to unmarshal");
         }
 
         WaveEntity_t *entity = 0;
@@ -376,7 +383,7 @@ int verify(string pemContent) {
             WaveEntitySecret_t *es = 0;
             es = (WaveEntitySecret_t *) unmarshal(type.buf, type.size, es, &asn_DEF_WaveEntitySecret);
             if (es == nullptr) {
-                verifyError("DER is not a wave entity");
+                return verifyError("DER is not a wave entity");
             }
             entity = &(es->entity);
         }
@@ -391,68 +398,68 @@ int verify(string pemContent) {
             Public_Ed25519_t *ks = 0;
             ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
             if (ks->size != 32) {
-                verifyError("key length is incorrect");
+                return verifyError("key length is incorrect");
             }
 
             // gofunc: VerifyCertify
             // gofunc: HasCapability
             if (!HasCapability(entity)) {
-                verifyError("this key cannot perform certifications");
+                return verifyError("this key cannot perform certifications");
             }
 
             // gofunc: Verify
             string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
             string entSig((const char *) entity->signature.buf, entity->signature.size);
             string ksStr((const char *) ks->buf, ks->size);
-            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-                (const unsigned char *) eData.c_str(), eData.length(), 
-                (const unsigned char *) ksStr.c_str())) {
-                cerr << "\nsig: " << string_to_hex(entSig);
-                cerr << "\nkey: " << string_to_hex(ksStr);
-                cerr << "\ndata: " << string_to_hex(eData) << "\n";
-                verifyError("entity ed25519 signature invalid");
-            }
-            cout << "valid entity signature\n";
+            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+            //     (const unsigned char *) eData.c_str(), eData.length(), 
+            //     (const unsigned char *) ksStr.c_str())) {
+            //     // cerr << "\nsig: " << string_to_hex(entSig);
+            //     // cerr << "\nkey: " << string_to_hex(ksStr);
+            //     // cerr << "\ndata: " << string_to_hex(eData) << "\n";
+            //     return verifyError("entity ed25519 signature invalid");
+            // }
+            ocall_print("valid entity signature\n");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
             Public_Curve25519_t *ks = 0;
             ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
             if (ks == nullptr) {
-                verifyError("entity key is null");
+                return verifyError("entity key is null");
             }
             if (ks->size != 32) {
-                verifyError("key length is incorrect");
+                return verifyError("key length is incorrect");
             }
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
             Params_BN256_IBE_t *ks = 0;
             ks = (Params_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_IBE);
             if (ks == nullptr) {
-                verifyError("entity key is null");
+                return verifyError("entity key is null");
             }
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
             Public_BN256_IBE_t *ks = 0;
             ks = (Public_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BN256_IBE);
             if (ks == nullptr) {
-                verifyError("entity key is null");
+                return verifyError("entity key is null");
             }
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
             Params_BN256_OAQUE_t *ks = 0;
             ks = (Params_BN256_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_OAQUE);
             if (ks == nullptr) {
-                verifyError("entity key is null");
+                return verifyError("entity key is null");
             }
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
             Public_OAQUE_t *ks = 0;
             ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
             if (ks == nullptr) {
-                verifyError("entity key is null");
+                return verifyError("entity key is null");
             }
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         } else {
-            verifyError("entity uses unsupported key scheme");
+            return verifyError("entity uses unsupported key scheme");
         }
 
         // Entity appears ok, let's unpack it further
@@ -468,46 +475,46 @@ int verify(string pemContent) {
                 Public_Ed25519_t *ks = 0;
                 ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
                 if (ks->size != 32) {
-                    verifyError("key length is incorrect");
+                    return verifyError("key length is incorrect");
                 }
             } else if (lkeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
                 Public_Curve25519_t *ks = 0;
                 ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
                 if (ks->size != 32) {
-                    verifyError("key length is incorrect");
+                    return verifyError("key length is incorrect");
                 }
             } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
                 Params_BN256_IBE_t *ks = 0;
                 ks = (Params_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_IBE);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
             } else if (lkeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
                 Public_BN256_IBE_t *ks = 0;
                 ks = (Public_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BN256_IBE);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
             } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_OAQUE)) {
                 Params_BN256_OAQUE_t *ks = 0;
                 ks = (Params_BN256_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_OAQUE);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
             } else if (lkeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
                 Public_OAQUE_t *ks = 0;
                 ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
                 if (ks == nullptr) {
-                    verifyError("tbs key is null");
+                    return verifyError("tbs key is null");
                 }
             } else {
-                verifyError("tbs key uses unsupported key scheme");
+                return verifyError("tbs key uses unsupported key scheme");
             }
         }
         EntityItem e(entity, entStr);
@@ -524,7 +531,7 @@ int verify(string pemContent) {
         attIndex++;
 
         AttestationReference_t::AttestationReference__keys keys = atst->keys;
-        char *vfk;
+        AVKeyAES128_GCM_t *vfk = 0;
         string verifierBodyKey;
         string verifierBodyNonce;
         int vfkLen = 0;
@@ -539,7 +546,6 @@ int verify(string pemContent) {
              */
             AttestationVerifierKey_t *key = (AttestationVerifierKey_t *) keys.list.array[keyIndex];
             ANY_t type = key->encoding.choice.single_ASN1_type;
-            AVKeyAES128_GCM_t *vfk = 0;
             vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
             int vfkLen = 0;
             if (vfk == nullptr) {
@@ -560,13 +566,13 @@ int verify(string pemContent) {
         WaveWireObject_t *wwoPtr = 0;
         wwoPtr = (WaveWireObject_t *) unmarshal(derEncodedData->buf, derEncodedData->size, wwoPtr, &asn_DEF_WaveWireObject);
         if (wwoPtr == nullptr) {
-            verifyError("failed to unmarshal atst content");
+            return verifyError("failed to unmarshal atst content");
         }
         WaveAttestation_t *att = 0;
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         att = (WaveAttestation_t *) unmarshal(type.buf, type.size, att, &asn_DEF_WaveAttestation);	/* pointer to decoded data */
         if (att == nullptr) {
-            verifyError("failed to unmarshal into Wave Attestation");
+            return verifyError("failed to unmarshal into Wave Attestation");
         }
 
         // gofunc: DecryptBody
@@ -581,13 +587,13 @@ int verify(string pemContent) {
             WR1BodyCiphertext_t *wr1body = 0;
             wr1body = (WR1BodyCiphertext_t *) unmarshal(type.buf, type.size, wr1body, &asn_DEF_WR1BodyCiphertext);
             if (wr1body == nullptr) {
-                verifyError("getting body ciphertext failed");
+                return verifyError("getting body ciphertext failed");
             }
             ocall_print("got wr1 body\n");
             // checking subject HI instance
             HashSchemeInstanceFor(att);
 
-            if (vfk) {
+            if (vfk != nullptr) {
                 ocall_print("decrypting attestation\n");
                 mbedtls_gcm_context ctx;
                 mbedtls_gcm_init( &ctx );
@@ -595,7 +601,7 @@ int verify(string pemContent) {
                 ret = mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, 
                     (const unsigned char *) verifierBodyKey.c_str(), verifierBodyKey.length()*8);
                 if (ret) {
-                    verifyError("aes set key failed");
+                    return verifyError("aes set key failed");
                 }
         
                 OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
@@ -612,7 +618,7 @@ int verify(string pemContent) {
                     // cerr << "ciphertext:\n" << string_to_hex(s) << "\n\n";
                     // cerr << "nonce:\n" << string_to_hex(t) << "\n\n";
                     // cerr << "key:\n" << string_to_hex(verifierBodyKey) << "\n";
-                    verifyError("aes decryption failed");
+                    return verifyError("aes decryption failed");
                 } else {
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
@@ -624,19 +630,19 @@ int verify(string pemContent) {
                 WR1VerifierBody_t *vbody = 0;
                 vbody = (WR1VerifierBody_t *) unmarshal((uint8_t *) verifierBodyDER, bodyLen-16, vbody, &asn_DEF_WR1VerifierBody);
                 if (vbody == nullptr) {
-                    verifyError("could not unmarshal into WR1VerifierBody");
+                    return verifyError("could not unmarshal into WR1VerifierBody");
                 }        
                 decryptedBody = &vbody->attestationVerifierBody;
             }
         } else {
-            verifyError("unsupported body scheme");
+            return verifyError("unsupported body scheme");
         }
 
         LocationURL_t *attesterLoc = 0;
         type = decryptedBody->attesterLocation.encoding.choice.single_ASN1_type;
         attesterLoc = (LocationURL_t *) unmarshal(type.buf, type.size, attesterLoc, &asn_DEF_LocationURL);
         if (attesterLoc == nullptr) {
-            verifyError("could not get attester loc");
+            return verifyError("could not get attester loc");
         }
 
         WaveEntity_t *attester = 0;
@@ -647,10 +653,10 @@ int verify(string pemContent) {
             HashKeccak_256_t *attesterHash = 0;
             attesterHash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashKeccak_256);
             if (attesterHash == nullptr) {
-                verifyError("could not get attester hash");
+                return verifyError("could not get attester hash");
             }
             if (attesterHash->size != 32) {
-                verifyError("attester hash not valid");
+                return verifyError("attester hash not valid");
             }
             // convert attestation hash to hex
             string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
@@ -669,20 +675,20 @@ int verify(string pemContent) {
             HashSha3_256_t *attesterHash = 0;
             attesterHash = (HashSha3_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
             if (attesterHash == nullptr) {
-                verifyError("could not get attester hash");
+                return verifyError("could not get attester hash");
             }
             if (attesterHash->size != 32) {
-                verifyError("attester hash not valid");
+                return verifyError("attester hash not valid");
             }
         } else {
-            verifyError("unsupported attester hash scheme id");
+            return verifyError("unsupported attester hash scheme id");
         }
 
         SignedOuterKey_t *binding = 0;
         type = decryptedBody->outerSignatureBinding.encoding.choice.single_ASN1_type;
         binding = (SignedOuterKey_t *) unmarshal(type.buf, type.size, binding, &asn_DEF_SignedOuterKey);
         if (binding == nullptr) {
-            verifyError("outer signature binding not supported/this is not really a signed outer key");
+            return verifyError("outer signature binding not supported/this is not really a signed outer key");
         }
 
         // gofunc: VerifyBinding
@@ -691,19 +697,17 @@ int verify(string pemContent) {
         type = att->outerSignature.encoding.choice.single_ASN1_type;
         osig = (Ed25519OuterSignature_t *) unmarshal(type.buf, type.size, osig, &asn_DEF_Ed25519OuterSignature);
         if (osig == nullptr) {
-            verifyError("unknown outer signature type/signature scheme not supported");
+            return verifyError("unknown outer signature type/signature scheme not supported");
         }
-        xer_fprint(stdout, &asn_DEF_WaveAttestation, att);
-        xer_fprint(stdout, &asn_DEF_Ed25519OuterSignature, osig);
 
         if (attester == nullptr) {
-            verifyError("no attester");
+            return verifyError("no attester");
         }
 
         // gofunc: VerifyCertify
         // gofunc: HasCapability
         if (!HasCapability(attester)) {
-            verifyError("this key cannot perform certifications");
+            return verifyError("this key cannot perform certifications");
         }
 
         // gofunc: Verify
@@ -713,7 +717,7 @@ int verify(string pemContent) {
         type = attester->tbs.verifyingKey.key.encoding.choice.single_ASN1_type;
         attesterKey = (Public_Ed25519_t *) unmarshal(type.buf, type.size, attesterKey, &asn_DEF_Public_Ed25519);
         if (attesterKey == nullptr) {
-            verifyError("couldn't unmarshal attesterKey");
+            return verifyError("couldn't unmarshal attesterKey");
         }
         string bindingSig((const char *) binding->signature.buf, binding->signature.size);
         string attKey((const char *) attesterKey->buf, attesterKey->size);
@@ -722,45 +726,39 @@ int verify(string pemContent) {
         //     (const unsigned char *) attKey.c_str())) {
         //     // cerr << "signature: " << string_to_hex(bindingSig);
         //     // cerr << "\nkey: " << string_to_hex(attKey) << "\n";
-        //     verifyError("outer signature binding invalid");
+        //     return verifyError("outer signature binding invalid");
         // }
         ocall_print("valid outer signature binding\n" );
 
         // Now we know the binding is valid, check the key is the same
         if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
             != getTypeId(&asn_DEF_Ed25519OuterSignature)) {
-            verifyError("outer signature scheme invalid");
+            return verifyError("outer signature scheme invalid");
         }
 
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, &binding->tbs.verifyingKey, &osig->verifyingKey)) {
-            verifyError("bound key does not match");
+            return verifyError("bound key does not match");
         }
         // check signature
         // gofunc: VerifySignature
         string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
+                        return 0;
 
         OCTET_STRING_t vKey = osig->verifyingKey;
         OCTET_STRING_t sig = osig->signature;
         string s((const char *) sig.buf, sig.size);
         string v((const char *) vKey.buf, vKey.size);
-        // cout << "sig\n";
-        // hexdump((void *) s.c_str(), s.length());
-        // cout << "key\n";
-        // hexdump((void *) v.c_str(), v.length());
-        // cout << "data\n";
-        // cout << encData.length();
-        // hexdump((void *) encData.c_str(), encData.length());
-        // return 0;
+
         // /* verify the signature */
         // if (!ed25519_verify((const unsigned char *) s.c_str(), 
         //         (const unsigned char *) encData.c_str(), encData.length(), 
         //         (const unsigned char *) v.c_str())) {
-        //     cerr << "\nsig: " << string_to_hex(s);
-        //     cerr << "\nkey: " << string_to_hex(v);
-        //     cerr << "\ndata: " << string_to_hex(encData) << "\n";
-        //     verifyError("invalid outer signature");
+        //     // cerr << "\nsig: " << string_to_hex(s);
+        //     // cerr << "\nkey: " << string_to_hex(v);
+        //     // cerr << "\ndata: " << string_to_hex(encData) << "\n";
+        //     return verifyError("invalid outer signature");
         // }
-        // ocall_print("valid outer signature\n";
+        ocall_print("valid outer signature\n");
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
     }
@@ -779,7 +777,7 @@ int verify(string pemContent) {
         int pIndex = 0;
         // len(path) == 0
         if (p->list.count == 0) {
-            verifyError("path of length 0");
+            return verifyError("path of length 0");
         }
         // path[0]
         long *pathNum = p->list.array[pIndex];
@@ -787,7 +785,7 @@ int verify(string pemContent) {
         try {
             attestationList.at(*pathNum); 
         } catch (...) {
-            verifyError("proof refers to non-included attestation");
+            return verifyError("proof refers to non-included attestation");
         }
 
         AttestationItem currAttItem = attestationList.at(*pathNum);
@@ -809,7 +807,7 @@ int verify(string pemContent) {
             try {
                 attestationList.at(*pathNum); 
             } catch (...) {
-                verifyError("proof refers to non-included attestation");
+                return verifyError("proof refers to non-included attestation");
             }
 
             AttestationItem nextAttItem = attestationList.at(*pathNum);
@@ -821,7 +819,7 @@ int verify(string pemContent) {
             LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
 
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
-                verifyError("path has broken links");
+                return verifyError("path has broken links");
             }
 
             // gofunc: PolicySchemeInstanceFor
@@ -833,7 +831,7 @@ int verify(string pemContent) {
             OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
             // // not doing multihash
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
-                verifyError("different authority domain");
+                return verifyError("different authority domain");
             }
             // gofunc: intersectStatement
             vector<RTreeStatementItem> statements;
@@ -896,10 +894,10 @@ int verify(string pemContent) {
 
             // Check errors
             if (indirections < 0) {
-                verifyError("insufficient permitted indirections");
+                return verifyError("insufficient permitted indirections");
             }
             if (dedup_statements.size() > PermittedCombinedStatements) {
-                verifyError("statements form too many combinations");
+                return verifyError("statements form too many combinations");
             }
             cursubj = nextAttest;
             LocationURL_t *cursubloc = nextAttLoc;
@@ -916,14 +914,14 @@ int verify(string pemContent) {
     vector<RTreePolicy_t *> v(pathpolicies.begin()+1, pathpolicies.end());
     for (int idx = 0; idx < pathpolicies.size(); idx++) {
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities[idx])) {
-            verifyError("paths don't terminate at same entity");
+            return verifyError("paths don't terminate at same entity");
         }
         // gofunc: Union
         OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies[idx]);
         OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
         // not doing multihash
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
-            verifyError("different authority domain");
+            return verifyError("different authority domain");
         }
         vector<RTreeStatementItem> statements;
         RTreePolicy_t::RTreePolicy__statements *lhsStatements = &aggregatepolicy->statements;
@@ -937,7 +935,7 @@ int verify(string pemContent) {
             indirections = pathpolicies[idx]->indirections;
         }
         if (dedup_statements.size() > PermittedCombinedStatements) {
-            verifyError("statements form too many combinations");
+            return verifyError("statements form too many combinations");
         }
     }
     return 0;

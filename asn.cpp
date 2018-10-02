@@ -10,7 +10,8 @@ void * unmarshal(uint8_t *derEncodedData, size_t size, void *decodePtr, asn_TYPE
         char errbuf[128];
         size_t errlen = sizeof(errbuf);
         if (asn_check_constraints(asnType, decodePtr, errbuf, &errlen)) {
-            verifyError("constraint check on unmarshalled object failed");
+            ocall_print("constraint check on unmarshalled object failed");
+            return nullptr;
         }
     }
     return decodePtr;

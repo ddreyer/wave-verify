@@ -7,6 +7,7 @@
 
 #include <OCTET_STRING.h>
 #include <time.h>
+#include "Enclave_t.h"
 
 #ifdef __cplusplus
 extern "C" {
