@@ -357,6 +357,9 @@ int verify(string pemContent) {
     if (exp == nullptr) {
         return verifyError("failed to unmarshal");
     }
+    
+    // free space on the heap for enclave
+    asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
 
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
@@ -378,6 +381,10 @@ int verify(string pemContent) {
         WaveEntity_t *entity = 0;
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         entity = (WaveEntity_t *) unmarshal(type.buf, type.size, entity, &asn_DEF_WaveEntity);	/* pointer to decoded data */
+
+        // free space on the heap for enclave
+        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+
         if (entity == nullptr) {
             // maybe this is an entity secret
             WaveEntitySecret_t *es = 0;
@@ -575,6 +582,9 @@ int verify(string pemContent) {
             return verifyError("failed to unmarshal into Wave Attestation");
         }
 
+        // free space on the heap for enclave
+        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+
         // gofunc: DecryptBody
         AttestationVerifierBody_t *decryptedBody;
         string schemeID = marshal(att->tbs.body.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
@@ -591,7 +601,9 @@ int verify(string pemContent) {
             }
             ocall_print("got wr1 body\n");
             // checking subject HI instance
-            HashSchemeInstanceFor(att);
+            OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
+            // free space on the heap for enclave
+            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
 
             if (vfk != nullptr) {
                 ocall_print("decrypting attestation\n");
@@ -742,7 +754,6 @@ int verify(string pemContent) {
         // check signature
         // gofunc: VerifySignature
         string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
-                        return 0;
 
         OCTET_STRING_t vKey = osig->verifyingKey;
         OCTET_STRING_t sig = osig->signature;
@@ -938,5 +949,6 @@ int verify(string pemContent) {
             return verifyError("statements form too many combinations");
         }
     }
+    ocall_print("verify succeeded");
     return 0;
 }
