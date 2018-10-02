@@ -1,5 +1,4 @@
 #include "verify.h"
-#include <stdio.h>
 
 const int CapCertification = 1;
 const int PermittedCombinedStatements = 1000;

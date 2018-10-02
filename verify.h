@@ -12,6 +12,7 @@
 
 #include "asn.h"
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 #include "ed25519/src/ed25519.h"
 #include "hash-library/keccak.h"
 
