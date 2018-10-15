@@ -336,10 +336,8 @@ void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTr
     }
 }
 
-int verify(string pemContent) {
-    string derEncodedData(base64_decode(pemContent));
-
-    // printf("Binary size: %lu\n", derEncodedData.length());
+int verify(char *proof) {
+    string derEncodedData(base64_decode(proof));
     if (derEncodedData.length() == 0) {
     	return verifyError("could not decode proof from DER format");
     }
@@ -612,21 +610,25 @@ int verify(string pemContent) {
 
                 EVP_CIPHER_CTX *ctx;
                 int outlen, ret;
-                ctx = EVP_CIPHER_CTX_new();
-                /* Select cipher */
-                EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
-                /* Specify key and IV */
-                EVP_DecryptInit_ex(ctx, NULL, NULL, (const unsigned char *) verifierBodyKey.c_str(), (const unsigned char *) verifierBodyNonce.c_str());
-                /* Decrypt plaintext */
-                ret = EVP_DecryptUpdate(ctx, verifierBodyDER, &outlen, vbodyCipher.buf, bodyLen);
-                if (!ret) {
+                if(!(ctx = EVP_CIPHER_CTX_new())) {
+                    return verifyError("Could not initialize decryption context");
+                }
+                /* Select cipher, key, and IV */
+                if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL,
+                            (const unsigned char *) verifierBodyKey.c_str(), 
+                            (const unsigned char *) verifierBodyNonce.c_str())) {
+                    return verifyError("Error setting aes decryption fields");
+                }
+                /* Decrypt ciphertext */
+                if (1 != EVP_DecryptUpdate(ctx, verifierBodyDER, &outlen, 
+                    vbodyCipher.buf, bodyLen)) {
                     return verifyError("aes decryption failed");
-                } else {
-                    unsigned char *hah = verifierBodyDER;
-                    string v((const char *)hah, bodyLen-16);
-                    ocall_print("aes decryption succeeded");
                 }
                 EVP_CIPHER_CTX_free(ctx);
+                unsigned char *hah = verifierBodyDER;
+                string v((const char *)hah, bodyLen-16);
+                ocall_print("aes decryption succeeded");
+
                 // free space on the heap for enclave
                 asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
 

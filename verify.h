@@ -12,7 +12,7 @@
 
 #include "asn.h"
 #include <openssl/evp.h>
-#include <openssl/pem.h>
+#include <openssl/rsa.h>
 #include "ed25519/src/ed25519.h"
 #include "hash-library/keccak.h"
 
@@ -50,6 +50,6 @@ public:
     string get_interResource();
 };
 
-int verify(string pemContent);
+int verify(char *proof);
 
 #endif
