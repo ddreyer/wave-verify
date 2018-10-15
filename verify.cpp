@@ -415,14 +415,11 @@ int verify(char *proof) {
             string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
             string entSig((const char *) entity->signature.buf, entity->signature.size);
             string ksStr((const char *) ks->buf, ks->size);
-            // if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-            //     (const unsigned char *) eData.c_str(), eData.length(), 
-            //     (const unsigned char *) ksStr.c_str())) {
-            //     // cerr << "\nsig: " << string_to_hex(entSig);
-            //     // cerr << "\nkey: " << string_to_hex(ksStr);
-            //     // cerr << "\ndata: " << string_to_hex(eData) << "\n";
-            //     return verifyError("entity ed25519 signature invalid");
-            // }
+            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+                (const unsigned char *) eData.c_str(), eData.length(), 
+                (const unsigned char *) ksStr.c_str())) {
+                return verifyError("entity ed25519 signature invalid");
+            }
             ocall_print("valid entity signature\n");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
             Public_Curve25519_t *ks = 0;
@@ -727,13 +724,11 @@ int verify(char *proof) {
         }
         string bindingSig((const char *) binding->signature.buf, binding->signature.size);
         string attKey((const char *) attesterKey->buf, attesterKey->size);
-        // if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
-        //     (const unsigned char *) encodedData.c_str(), encodedData.length(), 
-        //     (const unsigned char *) attKey.c_str())) {
-        //     // cerr << "signature: " << string_to_hex(bindingSig);
-        //     // cerr << "\nkey: " << string_to_hex(attKey) << "\n";
-        //     return verifyError("outer signature binding invalid");
-        // }
+        if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
+            (const unsigned char *) encodedData.c_str(), encodedData.length(), 
+            (const unsigned char *) attKey.c_str())) {
+            return verifyError("outer signature binding invalid");
+        }
         ocall_print("valid outer signature binding\n" );
 
         // Now we know the binding is valid, check the key is the same
@@ -748,21 +743,16 @@ int verify(char *proof) {
         // check signature
         // gofunc: VerifySignature
         string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
-
         OCTET_STRING_t vKey = osig->verifyingKey;
         OCTET_STRING_t sig = osig->signature;
         string s((const char *) sig.buf, sig.size);
         string v((const char *) vKey.buf, vKey.size);
-
-        // /* verify the signature */
-        // if (!ed25519_verify((const unsigned char *) s.c_str(), 
-        //         (const unsigned char *) encData.c_str(), encData.length(), 
-        //         (const unsigned char *) v.c_str())) {
-        //     // cerr << "\nsig: " << string_to_hex(s);
-        //     // cerr << "\nkey: " << string_to_hex(v);
-        //     // cerr << "\ndata: " << string_to_hex(encData) << "\n";
-        //     return verifyError("invalid outer signature");
-        // }
+        /* verify the signature */
+        if (!ed25519_verify((const unsigned char *) s.c_str(), 
+                (const unsigned char *) encData.c_str(), encData.length(), 
+                (const unsigned char *) v.c_str())) {
+            return verifyError("invalid outer signature");
+        }
         ocall_print("valid outer signature\n");
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
