@@ -18,6 +18,16 @@
 
 using namespace std;
 
+class RVerifyRTreeProof {
+private:
+    OCTET_STRING_t subject;
+    RTreePolicy_t policy;
+public:
+    RVerifyRTreeProof(OCTET_STRING_t subj, RTreePolicy_t policy);
+    OCTET_STRING_t get_subject();
+    RTreePolicy_t get_policy();
+};
+
 class EntityItem {
 private:
     WaveEntity_t *entity;
@@ -50,6 +60,8 @@ public:
     string get_interResource();
 };
 
-int verify(char *proof);
+OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy);
+
+RVerifyRTreeProof * verify_rtree_proof(char *proof);
 
 #endif

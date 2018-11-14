@@ -43,9 +43,14 @@ string base64_decode(string const& encoded_string) {
     return ret;
 }
 
-int verifyError(string errMessage) {
-    ocall_print(errMessage.c_str());
-    return -1;
+void * verify_rtree_error(string message) {
+    ocall_print(message.c_str());
+    return nullptr;
+}
+
+sgx_status_t verify_error(string message) {
+    ocall_print(message.c_str());
+    return SGX_ERROR_UNEXPECTED;
 }
 
 string string_to_hex(const string& input) {

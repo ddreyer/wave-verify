@@ -19,7 +19,9 @@ static inline bool is_base64(unsigned char c) {
 
 string base64_decode(string const& encoded_string);
 
-int verifyError(string errMessage);
+void * verify_rtree_error(string message);
+
+sgx_status_t verify_error(string message);
 
 /* useful functions for debugging */
 string string_to_hex(const string& input);
