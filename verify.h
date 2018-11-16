@@ -62,6 +62,8 @@ public:
 
 OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy);
 
-RVerifyRTreeProof * verify_rtree_proof(char *proof);
+bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset);
+
+RVerifyRTreeProof * verify_rtree_proof(char *proof, size_t proofSize);
 
 #endif

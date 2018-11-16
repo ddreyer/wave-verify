@@ -349,14 +349,16 @@ void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTr
     }
 }
 
-RVerifyRTreeProof * verify_rtree_proof(char *proof) {
-    string derEncodedData(base64_decode(proof));
-    if (derEncodedData.length() == 0) {
-    	return verify_rtree_error("could not decode proof from DER format");
-    }
-
+RVerifyRTreeProof * verify_rtree_proof(char *proof, size_t proofSize) {
+    ocall_print("verifying rtree proof\n");
+    // string proofStr(proof, proofSize);
+    // string decodedProof(base64_decode(proofStr));
+    // if (decodedProof.length() == 0) {
+    // 	return verify_rtree_error("could not decode proof from DER format");
+    // }
+    string decodedProof(proof, proofSize);
     WaveWireObject_t *wwoPtr = 0;
-    wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (derEncodedData.c_str()), derEncodedData.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
+    wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
         return verify_rtree_error("failed to unmarshal");
     }
@@ -537,7 +539,7 @@ RVerifyRTreeProof * verify_rtree_proof(char *proof) {
 
     // retrieve attestations
     WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
-    ocall_print("attestations retrieved\n\n");
+    ocall_print("\nattestations retrieved\n");
     vector<AttestationItem> attestationList;
     int attIndex = 0;
     while (attIndex < atsts.list.count) {
@@ -637,7 +639,7 @@ RVerifyRTreeProof * verify_rtree_proof(char *proof) {
                 EVP_CIPHER_CTX_free(ctx);
                 unsigned char *hah = verifierBodyDER;
                 string v((const char *)hah, bodyLen-16);
-                ocall_print("aes decryption succeeded");
+                ocall_print("aes decryption succeeded\n");
 
                 // free space on the heap for enclave
                 asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
