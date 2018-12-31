@@ -5,19 +5,6 @@ const int PermittedCombinedStatements = 1000;
 
 using namespace std;
 
-RVerifyRTreeProof::RVerifyRTreeProof(OCTET_STRING_t subj, RTreePolicy_t policy) {
-    subject = subj;
-    policy = policy;
-}
-
-OCTET_STRING_t RVerifyRTreeProof::get_subject() {
-    return subject;
-}
-
-RTreePolicy_t RVerifyRTreeProof::get_policy() {
-    return policy;
-}
-
 EntityItem::EntityItem(WaveEntity_t *ent, string entDer) {
     entity = ent;
     entityDer = entDer;
@@ -349,7 +336,12 @@ void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTr
     }
 }
 
-RVerifyRTreeProof * verify_rtree_proof(char *proof, size_t proofSize) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_error(string message) {
+    ocall_print(message.c_str());
+    return {nullptr};
+}
+
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_proof(char *proof, size_t proofSize) {
     ocall_print("verifying rtree proof\n");
     // string proofStr(proof, proofSize);
     // string decodedProof(base64_decode(proofStr));
@@ -920,33 +912,38 @@ RVerifyRTreeProof * verify_rtree_proof(char *proof, size_t proofSize) {
     // Now combine the policies together
     ocall_print("paths verified, now combining the policies\n");
     RTreePolicy_t *aggregatepolicy = pathpolicies[0];
+    OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
+    vector<RTreeStatementItem> dedup_statements;
+    appendStatements(&dedup_statements, &(aggregatepolicy->statements));
+    // long finalIndirections = aggregatepolicy->indirections;
     OCTET_STRING_t *finalsubject = pathEndEntities[0];
-    vector<RTreePolicy_t *> v(pathpolicies.begin()+1, pathpolicies.end());
-    for (int idx = 0; idx < pathpolicies.size(); idx++) {
+    for (int idx = 1; idx < pathpolicies.size(); idx++) {
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities[idx])) {
             return verify_rtree_error("paths don't terminate at same entity");
         }
         // gofunc: Union
         OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies[idx]);
-        OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
         // not doing multihash
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
             return verify_rtree_error("different authority domain");
         }
         vector<RTreeStatementItem> statements;
-        RTreePolicy_t::RTreePolicy__statements *lhsStatements = &aggregatepolicy->statements;
-        appendStatements(&statements, lhsStatements);
-        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &pathpolicies[idx]->statements;
+        // statements.insert(statements.end(), aggregatepolicy->get_statements().begin(), 
+        //     aggregatepolicy->get_statements().end());
+        // RTreePolicy_t::RTreePolicy__statements *lhsStatements = &(origAggPolicy->statements)
+        // appendStatements(&statements, aggregatepolicy.get_statements());
+        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies[idx]->statements);
         appendStatements(&statements, rhsStatements);
-        vector<RTreeStatementItem> dedup_statements;
+        // vector<RTreeStatementItem> dedup_statements;
         computeStatements(&statements, &dedup_statements);
-        int indirections;
-        if (pathpolicies[idx]->indirections < aggregatepolicy->indirections) {
-            indirections = pathpolicies[idx]->indirections;
-        }
+        // if (pathpolicies[idx]->indirections < origAggPolicy->indirections) {
+        //     finalIndirections = pathpolicies[idx]->indirections;
+        // }
+
+        // aggregatepolicy->set_statements(dedup_statements);
         if (dedup_statements.size() > PermittedCombinedStatements) {
             return verify_rtree_error("statements form too many combinations");
         }
     }
-    return new RVerifyRTreeProof(*finalsubject, *aggregatepolicy);
+    return {finalsubject, lhs_ns, dedup_statements};
 }

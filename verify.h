@@ -18,16 +18,6 @@
 
 using namespace std;
 
-class RVerifyRTreeProof {
-private:
-    OCTET_STRING_t subject;
-    RTreePolicy_t policy;
-public:
-    RVerifyRTreeProof(OCTET_STRING_t subj, RTreePolicy_t policy);
-    OCTET_STRING_t get_subject();
-    RTreePolicy_t get_policy();
-};
-
 class EntityItem {
 private:
     WaveEntity_t *entity;
@@ -64,6 +54,8 @@ OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy);
 
 bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset);
 
-RVerifyRTreeProof * verify_rtree_proof(char *proof, size_t proofSize);
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_error(string message);
+
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_proof(char *proof, size_t proofSize);
 
 #endif

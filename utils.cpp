@@ -43,11 +43,6 @@ string base64_decode(string const& encoded_string) {
     return ret;
 }
 
-void * verify_rtree_error(string message) {
-    ocall_print(message.c_str());
-    return nullptr;
-}
-
 sgx_status_t verify_error(string message) {
     ocall_print(message.c_str());
     return SGX_ERROR_UNEXPECTED;

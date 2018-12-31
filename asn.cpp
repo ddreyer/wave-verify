@@ -100,7 +100,7 @@ string getTypeId(asn_TYPE_descriptor_t *td) {
     } else if (td == &asn_DEF_RTreePolicy) {
         return idJoiner(PolicyScheme, ResourceTree);
     } else {
-        verify_rtree_error("Could not find a match for a type id");
+        ocall_print("Could not find a match for a type id");
     }
 }
 
@@ -109,7 +109,8 @@ string marshal(void *obj, asn_TYPE_descriptor_t *asnType) {
     char errbuf[128];
     size_t errlen = sizeof(errbuf);
     if (asn_check_constraints(asnType, obj, errbuf, &errlen)) {
-        verify_rtree_error("constraint check on object to be marshalled failed");
+        ocall_print("constraint check on object to be marshalled failed");
+        return nullptr;
     }
     enc_buffer_t enc_buf;
     init_enc_buffer(&enc_buf);
