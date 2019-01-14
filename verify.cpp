@@ -336,19 +336,20 @@ void appendStatements(vector<RTreeStatementItem> *statements, RTreePolicy_t::RTr
     }
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_error(string message) {
+long expiry_to_long(OCTET_STRING_t expiryStr) {
+    string temp = string((const char *) expiryStr.buf, expiryStr.size);
+    return stol(temp, nullptr);
+}
+
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> verify_rtree_error(string message) {
     ocall_print(message.c_str());
     return {nullptr};
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtree_proof(char *proof, size_t proofSize) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> verify_rtree_proof(char *proof, size_t proofSize) {
     ocall_print("verifying rtree proof\n");
-    // string proofStr(proof, proofSize);
-    // string decodedProof(base64_decode(proofStr));
-    // if (decodedProof.length() == 0) {
-    // 	return verify_rtree_error("could not decode proof from DER format");
-    // }
     string decodedProof(proof, proofSize);
+    long expiry = LONG_MAX;
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
@@ -525,6 +526,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtr
                 return verify_rtree_error("tbs key uses unsupported key scheme");
             }
         }
+
+        long currExp = expiry_to_long(entity->tbs.validity.notAfter);
+        if (currExp < expiry) {
+            expiry = currExp;
+        }
+
         EntityItem e(entity, entStr);
         entList.push_back(e);
     }
@@ -761,6 +768,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtr
             return verify_rtree_error("invalid outer signature");
         }
         ocall_print("valid outer signature\n");
+
+        long currExp = expiry_to_long(decryptedBody->validity.notAfter);
+        if (currExp < expiry) {
+            expiry = currExp;
+        }
+
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
     }
@@ -945,5 +958,5 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>> verify_rtr
             return verify_rtree_error("statements form too many combinations");
         }
     }
-    return {finalsubject, lhs_ns, dedup_statements};
+    return {finalsubject, lhs_ns, dedup_statements, expiry};
 }
