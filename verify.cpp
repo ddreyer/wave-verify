@@ -284,6 +284,9 @@ bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *super
     if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
         return false;
     }
+    // free space on the heap for enclave
+    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
+    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
     unordered_map<string, bool> superset_perms;
     for (auto perm : superset->get_permissions()) {
         superset_perms[perm] = true;
@@ -341,12 +344,12 @@ long expiry_to_long(OCTET_STRING_t expiryStr) {
     return stol(temp, nullptr);
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> verify_rtree_error(string message) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_error(string message) {
     ocall_print(message.c_str());
     return {nullptr};
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> verify_rtree_proof(char *proof, size_t proofSize) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_proof(char *proof, size_t proofSize) {
     ocall_print("verifying rtree proof\n");
     string decodedProof(proof, proofSize);
     long expiry = LONG_MAX;
@@ -359,13 +362,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
     WaveExplicitProof_t *exp = 0;
     ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
     exp = (WaveExplicitProof_t *) unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
+    // free space on the heap for enclave
+    asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
     if (exp == nullptr) {
         return verify_rtree_error("failed to unmarshal");
     }
     
-    // free space on the heap for enclave
-    asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
     ocall_print("entities retrieved\n");
@@ -379,7 +381,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         // gofunc: ParseEntity
         WaveWireObject_t *wwoPtr = nullptr;
         wwoPtr = (WaveWireObject_t *) unmarshal(ent->buf, ent->size, wwoPtr, &asn_DEF_WaveWireObject);
-        if (exp == nullptr) {
+        if (wwoPtr == nullptr) {
             return verify_rtree_error("failed to unmarshal");
         }
 
@@ -387,18 +389,20 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         entity = (WaveEntity_t *) unmarshal(type.buf, type.size, entity, &asn_DEF_WaveEntity);	/* pointer to decoded data */
 
-        // free space on the heap for enclave
-        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-
         if (entity == nullptr) {
             // maybe this is an entity secret
             WaveEntitySecret_t *es = 0;
             es = (WaveEntitySecret_t *) unmarshal(type.buf, type.size, es, &asn_DEF_WaveEntitySecret);
             if (es == nullptr) {
+                // free space on the heap for enclave
+                asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
                 return verify_rtree_error("DER is not a wave entity");
             }
             entity = &(es->entity);
         }
+
+        // free space on the heap for enclave
+        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
 
         // gofunc: parseEntityFromObject
         // check the signature
@@ -410,6 +414,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             Public_Ed25519_t *ks = 0;
             ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
             if (ks->size != 32) {
+                // free space on the heap for enclave
+                asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
                 return verify_rtree_error("key length is incorrect");
             }
 
@@ -423,6 +429,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
             string entSig((const char *) entity->signature.buf, entity->signature.size);
             string ksStr((const char *) ks->buf, ks->size);
+
+            // free space on the heap for enclave
+            asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
+            
             if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
                 (const unsigned char *) eData.c_str(), eData.length(), 
                 (const unsigned char *) ksStr.c_str())) {
@@ -436,8 +446,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                 return verify_rtree_error("entity key is null");
             }
             if (ks->size != 32) {
+                // free space on the heap for enclave
+                asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
                 return verify_rtree_error("key length is incorrect");
             }
+            // free space on the heap for enclave
+            asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
             Params_BN256_IBE_t *ks = 0;
@@ -445,6 +459,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (ks == nullptr) {
                 return verify_rtree_error("entity key is null");
             }
+            // free space on the heap for enclave
+            asn_DEF_Params_BN256_IBE.op->free_struct(&asn_DEF_Params_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
             Public_BN256_IBE_t *ks = 0;
@@ -452,6 +468,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (ks == nullptr) {
                 return verify_rtree_error("entity key is null");
             }
+            // free space on the heap for enclave
+            asn_DEF_Public_BN256_IBE.op->free_struct(&asn_DEF_Public_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
             Params_BN256_OAQUE_t *ks = 0;
@@ -459,6 +477,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (ks == nullptr) {
                 return verify_rtree_error("entity key is null");
             }
+            // free space on the heap for enclave
+            asn_DEF_Params_BN256_OAQUE.op->free_struct(&asn_DEF_Params_BN256_OAQUE, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
             Public_OAQUE_t *ks = 0;
@@ -466,6 +486,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (ks == nullptr) {
                 return verify_rtree_error("entity key is null");
             }
+            // free space on the heap for enclave
+            asn_DEF_Public_OAQUE.op->free_struct(&asn_DEF_Public_OAQUE, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
         } else {
             return verify_rtree_error("entity uses unsupported key scheme");
@@ -487,8 +509,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                     return verify_rtree_error("tbs key is null");
                 }
                 if (ks->size != 32) {
+                    // free space on the heap for enclave
+                    asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
                     return verify_rtree_error("key length is incorrect");
                 }
+                // free space on the heap for enclave
+                asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
                 Public_Curve25519_t *ks = 0;
                 ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
@@ -496,32 +522,44 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                     return verify_rtree_error("tbs key is null");
                 }
                 if (ks->size != 32) {
+                    // free space on the heap for enclave
+                    asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
                     return verify_rtree_error("key length is incorrect");
                 }
+                // free space on the heap for enclave
+                asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
                 Params_BN256_IBE_t *ks = 0;
                 ks = (Params_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_IBE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
+                // free space on the heap for enclave
+                asn_DEF_Params_BN256_IBE.op->free_struct(&asn_DEF_Params_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
                 Public_BN256_IBE_t *ks = 0;
                 ks = (Public_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BN256_IBE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
+                // free space on the heap for enclave
+                asn_DEF_Public_BN256_IBE.op->free_struct(&asn_DEF_Public_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_OAQUE)) {
                 Params_BN256_OAQUE_t *ks = 0;
                 ks = (Params_BN256_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_OAQUE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
+                 // free space on the heap for enclave
+                asn_DEF_Params_BN256_OAQUE.op->free_struct(&asn_DEF_Params_BN256_OAQUE, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
                 Public_OAQUE_t *ks = 0;
                 ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
+                // free space on the heap for enclave
+                asn_DEF_Public_OAQUE.op->free_struct(&asn_DEF_Public_OAQUE, ks, ASFM_FREE_EVERYTHING);
             } else {
                 return verify_rtree_error("tbs key uses unsupported key scheme");
             }
@@ -568,6 +606,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             } else {
                 vfkLen = vfk->size;
                 string verifierKey(vfk->buf, vfk->buf + vfkLen);
+                // free space on the heap for enclave
+                asn_DEF_AVKeyAES128_GCM.op->free_struct(&asn_DEF_AVKeyAES128_GCM, vfk, ASFM_FREE_EVERYTHING);  
                 verifierBodyKey = verifierKey.substr(0, 16);
                 verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
                 break;
@@ -586,12 +626,11 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         WaveAttestation_t *att = 0;
         ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
         att = (WaveAttestation_t *) unmarshal(type.buf, type.size, att, &asn_DEF_WaveAttestation);	/* pointer to decoded data */
+        // free space on the heap for enclave
+        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
         if (att == nullptr) {
             return verify_rtree_error("failed to unmarshal into Wave Attestation");
         }
-
-        // free space on the heap for enclave
-        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
 
         // gofunc: DecryptBody
         AttestationVerifierBody_t *decryptedBody;
@@ -661,6 +700,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         if (attesterLoc == nullptr) {
             return verify_rtree_error("could not get attester loc");
         }
+        // free space on the heap for enclave
+        asn_DEF_LocationURL.op->free_struct(&asn_DEF_LocationURL, attesterLoc, ASFM_FREE_EVERYTHING);
 
         WaveEntity_t *attester = 0;
         string attestId = marshal(decryptedBody->attester.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
@@ -673,10 +714,15 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                 return verify_rtree_error("could not get attester hash");
             }
             if (attesterHash->size != 32) {
+                // free space on the heap for enclave
+                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
                 return verify_rtree_error("attester hash not valid");
             }
             // convert attestation hash to hex
             string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
+            // free space on the heap for enclave
+            asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
+
             string attHashHex = string_to_hex(attesterHashStr);
             // loop through entities
             for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
@@ -687,6 +733,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                     attester = it->get_entity();
                     break;
                 }
+                // free space on the heap for enclave
+                asn_DEF_WaveEntity.op->free_struct(&asn_DEF_WaveEntity, it->get_entity(), ASFM_FREE_EVERYTHING);
             }
         } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
             HashSha3_256_t *attesterHash = 0;
@@ -695,8 +743,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                 return verify_rtree_error("could not get attester hash");
             }
             if (attesterHash->size != 32) {
+                // free space on the heap for enclave
+                asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
                 return verify_rtree_error("attester hash not valid");
             }
+            // free space on the heap for enclave
+            asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
         } else {
             return verify_rtree_error("unsupported attester hash scheme id");
         }
@@ -738,6 +790,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         }
         string bindingSig((const char *) binding->signature.buf, binding->signature.size);
         string attKey((const char *) attesterKey->buf, attesterKey->size);
+
+        // free space on the heap for enclave
+        asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, attesterKey, ASFM_FREE_EVERYTHING);
+
         if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
             (const unsigned char *) encodedData.c_str(), encodedData.length(), 
             (const unsigned char *) attKey.c_str())) {
@@ -774,6 +830,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             expiry = currExp;
         }
 
+        // free space on the heap for enclave
+        asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+        asn_DEF_Ed25519OuterSignature.op->free_struct(&asn_DEF_Ed25519OuterSignature, osig, ASFM_FREE_EVERYTHING);
         AttestationItem aItem(att, decryptedBody);
         attestationList.push_back(aItem);
     }
@@ -790,11 +849,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
         pathIndex++;
         int pIndex = 0;
-        // len(path) == 0
         if (p->list.count == 0) {
             return verify_rtree_error("path of length 0");
         }
-        // path[0]
         long *pathNum = p->list.array[pIndex];
         pIndex++;
         try {
@@ -836,6 +893,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
                 return verify_rtree_error("path has broken links");
             }
+            // free space on the heap for enclave
+            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
 
             // gofunc: PolicySchemeInstanceFor
             AttestationVerifierBody_t *nextBody = nextAttItem.get_body();
@@ -848,6 +907,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
                 return verify_rtree_error("different authority domain");
             }
+            // free space on the heap for enclave
+            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
+            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
+            
             // gofunc: intersectStatement
             vector<RTreeStatementItem> statements;
             RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
@@ -865,7 +928,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                     if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
                         continue;
                     }
-
+                    // free space on the heap for enclave
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
+                    
                     unordered_map <string, bool> lhs_perms;
                     int lpermIdx = 0;
                     while (lpermIdx < leftStatement->permissions.list.count) {
@@ -907,6 +973,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
                 indirections = nextPolicy->indirections - 1;
             }
 
+            // free space on the heap for enclave
+            asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, nextPolicy, ASFM_FREE_EVERYTHING);
+            
             // Check errors
             if (indirections < 0) {
                 return verify_rtree_error("insufficient permitted indirections");
@@ -926,8 +995,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
     ocall_print("paths verified, now combining the policies\n");
     RTreePolicy_t *aggregatepolicy = pathpolicies[0];
     OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
-    vector<RTreeStatementItem> dedup_statements;
-    appendStatements(&dedup_statements, &(aggregatepolicy->statements));
+    vector<RTreeStatementItem> *dedup_statements = new vector<RTreeStatementItem>();
+    appendStatements(dedup_statements, &(aggregatepolicy->statements));
     // long finalIndirections = aggregatepolicy->indirections;
     OCTET_STRING_t *finalsubject = pathEndEntities[0];
     for (int idx = 1; idx < pathpolicies.size(); idx++) {
@@ -940,6 +1009,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
             return verify_rtree_error("different authority domain");
         }
+        // free space on the heap for enclave
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
+        
         vector<RTreeStatementItem> statements;
         // statements.insert(statements.end(), aggregatepolicy->get_statements().begin(), 
         //     aggregatepolicy->get_statements().end());
@@ -948,15 +1020,34 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem>, long> veri
         RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies[idx]->statements);
         appendStatements(&statements, rhsStatements);
         // vector<RTreeStatementItem> dedup_statements;
-        computeStatements(&statements, &dedup_statements);
+        computeStatements(&statements, dedup_statements);
+        // free space on the heap for enclave
+        for (auto & s: statements) {
+            asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, s.get_permissionSet(), ASFM_FREE_EVERYTHING);
+        }
         // if (pathpolicies[idx]->indirections < origAggPolicy->indirections) {
         //     finalIndirections = pathpolicies[idx]->indirections;
         // }
 
         // aggregatepolicy->set_statements(dedup_statements);
-        if (dedup_statements.size() > PermittedCombinedStatements) {
+        if (dedup_statements->size() > PermittedCombinedStatements) {
             return verify_rtree_error("statements form too many combinations");
         }
     }
+
+    // free space on the heap for enclave
+    asn_DEF_WaveExplicitProof.op->free_struct(&asn_DEF_WaveExplicitProof, exp, ASFM_FREE_EVERYTHING);
+    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
+    for (int i = 1; i < pathEndEntities.size(); i++) {
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities[i], ASFM_FREE_EVERYTHING);
+    }
+    for (auto & pol: pathpolicies) {
+        asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pol, ASFM_FREE_EVERYTHING);
+    }
+    for (auto & att: attestationList) {
+        asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att.get_att(), ASFM_FREE_EVERYTHING);
+        asn_DEF_AttestationVerifierBody.op->free_struct(&asn_DEF_AttestationVerifierBody, att.get_body(), ASFM_FREE_EVERYTHING);
+    }
+
     return {finalsubject, lhs_ns, dedup_statements, expiry};
 }

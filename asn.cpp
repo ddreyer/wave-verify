@@ -110,11 +110,12 @@ string marshal(void *obj, asn_TYPE_descriptor_t *asnType) {
     size_t errlen = sizeof(errbuf);
     if (asn_check_constraints(asnType, obj, errbuf, &errlen)) {
         ocall_print("constraint check on object to be marshalled failed");
-        return nullptr;
+        return "";
     }
     enc_buffer_t enc_buf;
     init_enc_buffer(&enc_buf);
     encode_to_buffer(&enc_buf, asnType, obj);
     string enc((char *) enc_buf.buffer, enc_buf.buffer_filled);
+    free_enc_buffer(&enc_buf);
     return enc;
 }
