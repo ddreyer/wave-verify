@@ -350,7 +350,6 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
 }
 
 tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_proof(char *proof, size_t proofSize) {
-    ocall_print("verifying rtree proof\n");
     string decodedProof(proof, proofSize);
     long expiry = LONG_MAX;
     WaveWireObject_t *wwoPtr = 0;
@@ -370,10 +369,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
     
     // parse entities
     WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
-    ocall_print("entities retrieved\n");
     list<EntityItem> entList;
     int entIndex = 0;
     while (entIndex < ents.list.count) {
+        ocall_print("\nParsing entity");
         OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
         string entStr((const char *) ent->buf, ent->size);
         entIndex++;
@@ -438,7 +437,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
                 (const unsigned char *) ksStr.c_str())) {
                 return verify_rtree_error("entity ed25519 signature invalid");
             }
-            ocall_print("valid entity signature\n");
+            ocall_print("valid entity signature");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
             Public_Curve25519_t *ks = 0;
             ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
@@ -576,10 +575,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
 
     // retrieve attestations
     WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
-    ocall_print("\nattestations retrieved\n");
     vector<AttestationItem> attestationList;
     int attIndex = 0;
     while (attIndex < atsts.list.count) {
+        ocall_print("\nParsing attestation");
         AttestationReference_t *atst = atsts.list.array[attIndex];
         attIndex++;
 
@@ -589,7 +588,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
         string verifierBodyNonce;
         int vfkLen = 0;
         if (keys.list.count == 0) {
-            ocall_print("atst has no keys\n");
+            ocall_print("atst has no keys");
         }
 
         int keyIndex = 0;
@@ -602,7 +601,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
             vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
             int vfkLen = 0;
             if (vfk == nullptr) {
-                ocall_print("atst key was not aes\n");
+                ocall_print("atst key was not aes");
             } else {
                 vfkLen = vfk->size;
                 string verifierKey(vfk->buf, vfk->buf + vfkLen);
@@ -636,9 +635,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
         AttestationVerifierBody_t *decryptedBody;
         string schemeID = marshal(att->tbs.body.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
         if (schemeID == getTypeId(&asn_DEF_AttestationBody)) {
-            ocall_print("unencrypted body scheme, currently not supported\n");
+            ocall_print("unencrypted body scheme, currently not supported");
         } else if (schemeID == getTypeId(&asn_DEF_WR1BodyCiphertext)) {
-            ocall_print("this is a wr1 body scheme\n");
+            ocall_print("this is a wr1 body scheme");
             // decrypt body
             type = att->tbs.body.encoding.choice.single_ASN1_type;
             WR1BodyCiphertext_t *wr1body = 0;
@@ -646,14 +645,14 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
             if (wr1body == nullptr) {
                 return verify_rtree_error("getting body ciphertext failed");
             }
-            ocall_print("got wr1 body\n");
+            ocall_print("got wr1 body");
             // checking subject HI instance
             OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
             // free space on the heap for enclave
             asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
 
             if (vfk != nullptr) {
-                ocall_print("decrypting attestation\n");
+                ocall_print("decrypting attestation");
                 OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
                 int bodyLen = vbodyCipher.size;
                 unsigned char verifierBodyDER[bodyLen];
@@ -677,7 +676,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
                 EVP_CIPHER_CTX_free(ctx);
                 unsigned char *hah = verifierBodyDER;
                 string v((const char *)hah, bodyLen-16);
-                ocall_print("aes decryption succeeded\n");
+                ocall_print("aes decryption succeeded");
 
                 // free space on the heap for enclave
                 asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
@@ -729,7 +728,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
                 Keccak k(Keccak::Keccak256);
                 string entityHash = k(it->get_der());
                 if (attHashHex == entityHash) {
-                    ocall_print("found matching entity for attester\n");
+                    ocall_print("found matching entity for attester");
                     attester = it->get_entity();
                     break;
                 }
@@ -799,7 +798,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
             (const unsigned char *) attKey.c_str())) {
             return verify_rtree_error("outer signature binding invalid");
         }
-        ocall_print("valid outer signature binding\n" );
+        ocall_print("valid outer signature binding" );
 
         // Now we know the binding is valid, check the key is the same
         if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
@@ -823,7 +822,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
                 (const unsigned char *) v.c_str())) {
             return verify_rtree_error("invalid outer signature");
         }
-        ocall_print("valid outer signature\n");
+        ocall_print("valid outer signature");
 
         long currExp = expiry_to_long(decryptedBody->validity.notAfter);
         if (currExp < expiry) {
@@ -837,13 +836,11 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
         attestationList.push_back(aItem);
     }
 
-    ocall_print("Finished parsing attestations\n\n");
-
     // now verify the paths
     vector<RTreePolicy_t *> pathpolicies;
     vector<OCTET_STRING_t *> pathEndEntities;
     WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
-    ocall_print("paths retrieved\n");
+    ocall_print("\npaths retrieved");
     int pathIndex = 0;
     while (pathIndex < paths.list.count) {
         WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
@@ -992,7 +989,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
     }
 
     // Now combine the policies together
-    ocall_print("paths verified, now combining the policies\n");
+    ocall_print("paths verified, now combining the policies");
     RTreePolicy_t *aggregatepolicy = pathpolicies[0];
     OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
     vector<RTreeStatementItem> *dedup_statements = new vector<RTreeStatementItem>();
