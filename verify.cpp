@@ -714,7 +714,6 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     attester = it->get_entity();
                     break;
                 }
-                asn_DEF_WaveEntity.op->free_struct(&asn_DEF_WaveEntity, it->get_entity(), ASFM_FREE_EVERYTHING);
             }
         } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
             HashSha3_256_t *attesterHash = 0;
@@ -988,13 +987,16 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
     }
 
     asn_DEF_WaveExplicitProof.op->free_struct(&asn_DEF_WaveExplicitProof, exp, ASFM_FREE_EVERYTHING);
-    for (int i = 1; i < pathEndEntities->size(); i++) {
-        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities->at(i), ASFM_FREE_EVERYTHING);
+    for (auto & ent: entList) {
+        asn_DEF_WaveEntity.op->free_struct(&asn_DEF_WaveEntity, ent.get_entity(), ASFM_FREE_EVERYTHING);
     }
-    delete pathEndEntities;
     for (auto & att: attestationList) {
         asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att.get_att(), ASFM_FREE_EVERYTHING);
         asn_DEF_AttestationVerifierBody.op->free_struct(&asn_DEF_AttestationVerifierBody, att.get_body(), ASFM_FREE_EVERYTHING);
     }
+    for (int i = 1; i < pathEndEntities->size(); i++) {
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities->at(i), ASFM_FREE_EVERYTHING);
+    }
+    delete pathEndEntities;
     return {finalsubject, lhs_ns, dedup_statements, expiry, pathpolicies};
 }
