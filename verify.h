@@ -54,8 +54,12 @@ OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy);
 
 bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *superset);
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_error(string message);
+RTreeStatementItem * statementToItem(RTreeStatement_t *statement);
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_proof(char *proof, size_t proofSize);
+void freeStatementItem(RTreeStatementItem *statement);
+
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long, vector<RTreePolicy_t *> *> verify_rtree_error(string message);
+
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long, vector<RTreePolicy_t *> *> verify_rtree_proof(char *proof, size_t proofSize);
 
 #endif

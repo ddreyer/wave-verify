@@ -69,24 +69,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
         HashKeccak_256_t *attest = 0;
         attest = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashKeccak_256);
         if (attest == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #1");
         }
         if (attest->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #2");
         }
         return attest;
     } else if (subId == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *attest = 0;
         attest = (HashSha3_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashSha3_256);
         if (attest == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #3");
         }
         if (attest->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #4");
         }
         return attest;
     } else {
-        ocall_print("VERIFY ERROR: problem with hash");
+        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #5");
         return nullptr;
     }
 }
@@ -98,24 +98,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #6");
         }
         if (hash->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #7");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #8");
         }
         if (hash->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #9");
         }
         return hash;
     } else {
-        ocall_print("VERIFY ERROR: problem with hash");
+        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #10");
         return nullptr;
     }
 }
@@ -127,24 +127,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #11");
         }
         if (hash->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #12");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #13");
         }
         if (hash->size != 32) {
-            ocall_print("VERIFY ERROR: problem with hash");
+            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #14");
         }
         return hash;
     } else {
-        ocall_print("VERIFY ERROR: problem with hash");
+        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #15");
         return nullptr;
     }
 }
@@ -154,7 +154,7 @@ LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
     LocationURL_t *lsurl = 0;
     lsurl = (LocationURL_t *) unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
-        ocall_print("VERIFY ERROR: subject location is unsupported");
+        ocall_print("subject location is unsupported");
         return nullptr;
     }
     return lsurl;
@@ -196,14 +196,14 @@ vector<string> split(string s, string delimiter) {
 
 string emit(vector<string> *bout, vector<string> *fout) {
     for (int i = 0; i < bout->size(); i++) {
-        fout->push_back((*bout)[bout->size()-i-1]);
+        fout->push_back(bout->at(bout->size()-i-1));
     }
     string ss("");
     for (size_t i = 0; i < fout->size(); ++i) {
         if (i != 0) {
-            ss.append(",");
+            ss.append("/");
         }
-        ss.append((*fout)[i]);
+        ss.append(fout->at(i));
     }
     return ss;
 }
@@ -217,7 +217,7 @@ string RestrictBy(string from, string by) {
     // phase 1: emit matching prefix
     int fi = 0, bi = 0;
     int fni = fp.size() - 1, bni = bp.size() - 1;
-    for (; fi < fp.size() && bi < bp.size(); fi, bi = fi+1, bi+1) {
+    for (; fi < fp.size() && bi < bp.size(); fi++, bi++) {
         if (fp[fi] != "*" && (fp[fi] == bp[bi] || (bp[bi] == "+" && fp[fi] != "*"))) {
             fout.push_back(fp[fi]);
         } else if (fp[fi] == "+" && bp[bi] != "*") {
@@ -228,7 +228,7 @@ string RestrictBy(string from, string by) {
     }
     //phase 2
     //emit matching suffix
-    for (; fni >= fi && bni >= bi; fni, bni = fni-1, bni-1) {
+    for (; fni >= fi && bni >= bi; fni--, bni--) {
         if (bp[bni] != "*" && (fp[fni] == bp[bni] || (bp[bni] == "+" && fp[fni] != "*"))) {
             bout.push_back(fp[fni]);
         } else if (fp[fni] == "+" && bp[bni] != "*") {
@@ -308,15 +308,15 @@ void computeStatements(vector<RTreeStatementItem> *statements, vector<RTreeState
     next:
     for (int orig_idx = 0; orig_idx < statements->size(); orig_idx++) {
         for (int chosen_idx = 0; chosen_idx < dedup_statements->size(); chosen_idx++) {
-            if (isStatementSupersetOf(&(*statements)[orig_idx], &(*dedup_statements)[chosen_idx])) {
+            if (isStatementSupersetOf(&statements->at(orig_idx), &dedup_statements->at(chosen_idx))) {
                 goto next;
             }
-            if (isStatementSupersetOf(&(*dedup_statements)[chosen_idx], &(*statements)[orig_idx])) {
+            if (isStatementSupersetOf(&dedup_statements->at(chosen_idx), &statements->at(orig_idx))) {
                 dedup_statements[chosen_idx] = statements[orig_idx];
                 goto next;
             }
         }
-        dedup_statements->push_back((*statements)[orig_idx]);
+        dedup_statements->push_back(statements->at(orig_idx));
     }
 }
 
@@ -344,12 +344,12 @@ long expiry_to_long(OCTET_STRING_t expiryStr) {
     return stol(temp, nullptr);
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_error(string message) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long, vector<RTreePolicy_t *> *> verify_rtree_error(string message) {
     ocall_print(message.c_str());
     return {nullptr};
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> verify_rtree_proof(char *proof, size_t proofSize) {
+tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long, vector<RTreePolicy_t *> *> verify_rtree_proof(char *proof, size_t proofSize) {
     string decodedProof(proof, proofSize);
     long expiry = LONG_MAX;
     WaveWireObject_t *wwoPtr = 0;
@@ -837,10 +837,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
     }
 
     // now verify the paths
-    vector<RTreePolicy_t *> pathpolicies;
-    vector<OCTET_STRING_t *> pathEndEntities;
+    vector<RTreePolicy_t *> *pathpolicies = new vector<RTreePolicy_t *>();
+    vector<OCTET_STRING_t *> *pathEndEntities = new vector<OCTET_STRING_t *>();
     WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
-    ocall_print("\npaths retrieved");
+    ocall_print("\nPaths retrieved");
     int pathIndex = 0;
     while (pathIndex < paths.list.count) {
         WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
@@ -983,25 +983,24 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
             cursubj = nextAttest;
             LocationURL_t *cursubloc = nextAttLoc;
         }
-        pathpolicies.push_back(policy);
-        pathEndEntities.push_back(cursubj);
+        pathpolicies->push_back(policy);
+        pathEndEntities->push_back(cursubj);
         LocationURL_t *subjectLocation = cursubloc;
     }
 
     // Now combine the policies together
-    ocall_print("paths verified, now combining the policies");
-    RTreePolicy_t *aggregatepolicy = pathpolicies[0];
+    ocall_print("Paths verified, now combining the policies");
+    RTreePolicy_t *aggregatepolicy = pathpolicies->at(0);
     OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
     vector<RTreeStatementItem> *dedup_statements = new vector<RTreeStatementItem>();
     appendStatements(dedup_statements, &(aggregatepolicy->statements));
-    // long finalIndirections = aggregatepolicy->indirections;
-    OCTET_STRING_t *finalsubject = pathEndEntities[0];
-    for (int idx = 1; idx < pathpolicies.size(); idx++) {
-        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities[idx])) {
+    OCTET_STRING_t *finalsubject = pathEndEntities->at(0);
+    for (int idx = 1; idx < pathpolicies->size(); idx++) {
+        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities->at(idx))) {
             return verify_rtree_error("paths don't terminate at same entity");
         }
         // gofunc: Union
-        OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies[idx]);
+        OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies->at(idx));
         // not doing multihash
         if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
             return verify_rtree_error("different authority domain");
@@ -1010,23 +1009,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
         asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
         
         vector<RTreeStatementItem> statements;
-        // statements.insert(statements.end(), aggregatepolicy->get_statements().begin(), 
-        //     aggregatepolicy->get_statements().end());
-        // RTreePolicy_t::RTreePolicy__statements *lhsStatements = &(origAggPolicy->statements)
-        // appendStatements(&statements, aggregatepolicy.get_statements());
-        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies[idx]->statements);
+        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies->at(idx)->statements);
         appendStatements(&statements, rhsStatements);
-        // vector<RTreeStatementItem> dedup_statements;
         computeStatements(&statements, dedup_statements);
-        // free space on the heap for enclave
-        for (auto & s: statements) {
-            asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, s.get_permissionSet(), ASFM_FREE_EVERYTHING);
-        }
-        // if (pathpolicies[idx]->indirections < origAggPolicy->indirections) {
-        //     finalIndirections = pathpolicies[idx]->indirections;
-        // }
-
-        // aggregatepolicy->set_statements(dedup_statements);
         if (dedup_statements->size() > PermittedCombinedStatements) {
             return verify_rtree_error("statements form too many combinations");
         }
@@ -1034,17 +1019,14 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem> *, long> ve
 
     // free space on the heap for enclave
     asn_DEF_WaveExplicitProof.op->free_struct(&asn_DEF_WaveExplicitProof, exp, ASFM_FREE_EVERYTHING);
-    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
-    for (int i = 1; i < pathEndEntities.size(); i++) {
-        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities[i], ASFM_FREE_EVERYTHING);
+    for (int i = 1; i < pathEndEntities->size(); i++) {
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities->at(i), ASFM_FREE_EVERYTHING);
     }
-    for (auto & pol: pathpolicies) {
-        asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pol, ASFM_FREE_EVERYTHING);
-    }
+    delete pathEndEntities;
     for (auto & att: attestationList) {
         asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att.get_att(), ASFM_FREE_EVERYTHING);
         asn_DEF_AttestationVerifierBody.op->free_struct(&asn_DEF_AttestationVerifierBody, att.get_body(), ASFM_FREE_EVERYTHING);
     }
 
-    return {finalsubject, lhs_ns, dedup_statements, expiry};
+    return {finalsubject, lhs_ns, dedup_statements, expiry, pathpolicies};
 }
