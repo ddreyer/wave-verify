@@ -29,5 +29,5 @@ clean:
 regen: regenerate-from-asn1-source
 
 regenerate-from-asn1-source:
-	/usr/local/bin/asn1c -fcompound-names objects-lite.asn
+	asn1c -fcompound-names objects-lite.asn
 

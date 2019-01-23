@@ -5,14 +5,14 @@
  * 	`asn1c -fcompound-names`
  */
 
-#ifndef	_BN256OAQUEBundleEntry_H_
-#define	_BN256OAQUEBundleEntry_H_
+#ifndef	_BLS12381OAQUEBundleEntry_H_
+#define	_BLS12381OAQUEBundleEntry_H_
 
 
 #include <asn_application.h>
 
 /* Including external dependencies */
-#include "Private-BN256-OAQUE.h"
+#include "Private-BLS12381-OAQUE.h"
 #include <asn_SEQUENCE_OF.h>
 #include <NativeInteger.h>
 #include <OCTET_STRING.h>
@@ -24,36 +24,36 @@ extern "C" {
 #endif
 
 /* Forward definitions */
-typedef struct BN256OAQUEBundleEntry__partitionChange__Member {
+typedef struct BLS12381OAQUEBundleEntry__partitionChange__Member {
 	long	 index;
 	OCTET_STRING_t	 content;
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
-} BN256OAQUEBundleEntry__partitionChange__Member;
+} BLS12381OAQUEBundleEntry__partitionChange__Member;
 
-/* BN256OAQUEBundleEntry */
-typedef struct BN256OAQUEBundleEntry {
-	struct BN256OAQUEBundleEntry__partitionChange {
-		A_SEQUENCE_OF(BN256OAQUEBundleEntry__partitionChange__Member) list;
+/* BLS12381OAQUEBundleEntry */
+typedef struct BLS12381OAQUEBundleEntry {
+	struct BLS12381OAQUEBundleEntry__partitionChange {
+		A_SEQUENCE_OF(BLS12381OAQUEBundleEntry__partitionChange__Member) list;
 		
 		/* Context for parsing across buffer boundaries */
 		asn_struct_ctx_t _asn_ctx;
 	} partitionChange;
-	Private_BN256_OAQUE_t	 key;
+	Private_BLS12381_OAQUE_t	 key;
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
-} BN256OAQUEBundleEntry_t;
+} BLS12381OAQUEBundleEntry_t;
 
 /* Implementation */
-extern asn_TYPE_descriptor_t asn_DEF_BN256OAQUEBundleEntry;
-extern asn_SEQUENCE_specifics_t asn_SPC_BN256OAQUEBundleEntry_specs_1;
-extern asn_TYPE_member_t asn_MBR_BN256OAQUEBundleEntry_1[2];
+extern asn_TYPE_descriptor_t asn_DEF_BLS12381OAQUEBundleEntry;
+extern asn_SEQUENCE_specifics_t asn_SPC_BLS12381OAQUEBundleEntry_specs_1;
+extern asn_TYPE_member_t asn_MBR_BLS12381OAQUEBundleEntry_1[2];
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* _BN256OAQUEBundleEntry_H_ */
+#endif	/* _BLS12381OAQUEBundleEntry_H_ */
 #include <asn_internal.h>

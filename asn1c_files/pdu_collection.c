@@ -10,7 +10,7 @@ extern struct asn_TYPE_descriptor_s asn_DEF_WaveEncryptedMessage;
 extern struct asn_TYPE_descriptor_s asn_DEF_AttestationBody;
 extern struct asn_TYPE_descriptor_s asn_DEF_WaveEntitySecret;
 extern struct asn_TYPE_descriptor_s asn_DEF_EntityKeyring;
-extern struct asn_TYPE_descriptor_s asn_DEF_BN256OAQUEKeyringBundle;
+extern struct asn_TYPE_descriptor_s asn_DEF_BLS12381OAQUEKeyringBundle;
 extern struct asn_TYPE_descriptor_s asn_DEF_WaveExplicitProof;
 extern struct asn_TYPE_descriptor_s asn_DEF_RTreePolicy;
 extern struct asn_TYPE_descriptor_s asn_DEF_HashSha3_256;
@@ -36,13 +36,13 @@ extern struct asn_TYPE_descriptor_s asn_DEF_CommitmentRevocationOption;
 extern struct asn_TYPE_descriptor_s asn_DEF_AVKeyAES128_GCM;
 extern struct asn_TYPE_descriptor_s asn_DEF_Private_Ed25519;
 extern struct asn_TYPE_descriptor_s asn_DEF_Private_Curve25519;
-extern struct asn_TYPE_descriptor_s asn_DEF_Private_BN256_IBE;
-extern struct asn_TYPE_descriptor_s asn_DEF_Master_BN256_OAQUE;
-extern struct asn_TYPE_descriptor_s asn_DEF_Master_BN256_IBE;
+extern struct asn_TYPE_descriptor_s asn_DEF_Private_BLS12381_IBE;
+extern struct asn_TYPE_descriptor_s asn_DEF_Master_BLS12381_OAQUE;
+extern struct asn_TYPE_descriptor_s asn_DEF_Master_BLS12381_IBE;
 extern struct asn_TYPE_descriptor_s asn_DEF_Public_Ed25519;
 extern struct asn_TYPE_descriptor_s asn_DEF_Public_Curve25519;
 extern struct asn_TYPE_descriptor_s asn_DEF_Public_OAQUE;
-extern struct asn_TYPE_descriptor_s asn_DEF_Public_BN256_IBE;
+extern struct asn_TYPE_descriptor_s asn_DEF_Public_BLS12381_IBE;
 extern struct asn_TYPE_descriptor_s asn_DEF_KeyringAESCiphertext;
 extern struct asn_TYPE_descriptor_s asn_DEF_MessageKeyCurve25519ECDH;
 extern struct asn_TYPE_descriptor_s asn_DEF_MessageKeyWR1;
@@ -57,7 +57,7 @@ struct asn_TYPE_descriptor_s *asn_pdu_collection[] = {
 	&asn_DEF_AttestationBody,	
 	&asn_DEF_WaveEntitySecret,	
 	&asn_DEF_EntityKeyring,	
-	&asn_DEF_BN256OAQUEKeyringBundle,	
+	&asn_DEF_BLS12381OAQUEKeyringBundle,	
 	&asn_DEF_WaveExplicitProof,	
 	&asn_DEF_RTreePolicy,	
 	&asn_DEF_HashSha3_256,	
@@ -83,13 +83,13 @@ struct asn_TYPE_descriptor_s *asn_pdu_collection[] = {
 	&asn_DEF_AVKeyAES128_GCM,	
 	&asn_DEF_Private_Ed25519,	
 	&asn_DEF_Private_Curve25519,	
-	&asn_DEF_Private_BN256_IBE,	
-	&asn_DEF_Master_BN256_OAQUE,	
-	&asn_DEF_Master_BN256_IBE,	
+	&asn_DEF_Private_BLS12381_IBE,	
+	&asn_DEF_Master_BLS12381_OAQUE,	
+	&asn_DEF_Master_BLS12381_IBE,	
 	&asn_DEF_Public_Ed25519,	
 	&asn_DEF_Public_Curve25519,	
 	&asn_DEF_Public_OAQUE,	
-	&asn_DEF_Public_BN256_IBE,	
+	&asn_DEF_Public_BLS12381_IBE,	
 	&asn_DEF_KeyringAESCiphertext,	
 	&asn_DEF_MessageKeyCurve25519ECDH,	
 	&asn_DEF_MessageKeyWR1,	

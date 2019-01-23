@@ -24,7 +24,7 @@ extern "C" {
 /* NameDeclarationKeyWR1 */
 typedef struct NameDeclarationKeyWR1 {
 	OCTET_STRING_t	 envelope;
-	OCTET_STRING_t	 envelopeKey_ibe_bn256;
+	OCTET_STRING_t	 envelopeKey_ibe_BLS12381;
 	EntityHash_t	 Namespace;
 	Location_t	 namespaceLocation;
 	

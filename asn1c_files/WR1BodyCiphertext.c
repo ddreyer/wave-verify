@@ -35,14 +35,14 @@ static asn_TYPE_member_t asn_MBR_WR1BodyCiphertext_1[] = {
 		0, 0, /* No default value */
 		"envelopeCiphertext"
 		},
-	{ ATF_NOFLAGS, 0, offsetof(struct WR1BodyCiphertext, envelopeKey_ibe_bn256),
+	{ ATF_NOFLAGS, 0, offsetof(struct WR1BodyCiphertext, envelopeKey_ibe_BLS12381),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
 		0,
 		&asn_DEF_OCTET_STRING,
 		0,
 		{ 0, 0, 0 },
 		0, 0, /* No default value */
-		"envelopeKey-ibe-bn256"
+		"envelopeKey-ibe-BLS12381"
 		},
 	{ ATF_NOFLAGS, 0, offsetof(struct WR1BodyCiphertext, envelopeKey_curve25519),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
@@ -70,7 +70,7 @@ static const asn_TYPE_tag2member_t asn_MAP_WR1BodyCiphertext_tag2el_1[] = {
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 0, 0, 5 }, /* verifierBodyCiphertext */
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, -1, 4 }, /* proverBodyCiphertext */
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 2, -2, 3 }, /* envelopeCiphertext */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 3, -3, 2 }, /* envelopeKey-ibe-bn256 */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 3, -3, 2 }, /* envelopeKey-ibe-BLS12381 */
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 4, -4, 1 }, /* envelopeKey-curve25519 */
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 5, -5, 0 } /* envelopeKey-curve25519-attester */
 };

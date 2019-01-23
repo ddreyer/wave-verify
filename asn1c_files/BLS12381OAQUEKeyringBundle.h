@@ -5,14 +5,14 @@
  * 	`asn1c -fcompound-names`
  */
 
-#ifndef	_BN256OAQUEKeyringBundle_H_
-#define	_BN256OAQUEKeyringBundle_H_
+#ifndef	_BLS12381OAQUEKeyringBundle_H_
+#define	_BLS12381OAQUEKeyringBundle_H_
 
 
 #include <asn_application.h>
 
 /* Including external dependencies */
-#include "Params-BN256-OAQUE.h"
+#include "Params-BLS12381-OAQUE.h"
 #include <asn_SEQUENCE_OF.h>
 #include <constr_SEQUENCE_OF.h>
 #include <constr_SEQUENCE.h>
@@ -22,13 +22,13 @@ extern "C" {
 #endif
 
 /* Forward declarations */
-struct BN256OAQUEBundleEntry;
+struct BLS12381OAQUEBundleEntry;
 
-/* BN256OAQUEKeyringBundle */
-typedef struct BN256OAQUEKeyringBundle {
-	Params_BN256_OAQUE_t	 params;
-	struct BN256OAQUEKeyringBundle__entries {
-		A_SEQUENCE_OF(struct BN256OAQUEBundleEntry) list;
+/* BLS12381OAQUEKeyringBundle */
+typedef struct BLS12381OAQUEKeyringBundle {
+	Params_BLS12381_OAQUE_t	 params;
+	struct BLS12381OAQUEKeyringBundle__entries {
+		A_SEQUENCE_OF(struct BLS12381OAQUEBundleEntry) list;
 		
 		/* Context for parsing across buffer boundaries */
 		asn_struct_ctx_t _asn_ctx;
@@ -36,17 +36,17 @@ typedef struct BN256OAQUEKeyringBundle {
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
-} BN256OAQUEKeyringBundle_t;
+} BLS12381OAQUEKeyringBundle_t;
 
 /* Implementation */
-extern asn_TYPE_descriptor_t asn_DEF_BN256OAQUEKeyringBundle;
+extern asn_TYPE_descriptor_t asn_DEF_BLS12381OAQUEKeyringBundle;
 
 #ifdef __cplusplus
 }
 #endif
 
 /* Referred external types */
-#include "BN256OAQUEBundleEntry.h"
+#include "BLS12381OAQUEBundleEntry.h"
 
-#endif	/* _BN256OAQUEKeyringBundle_H_ */
+#endif	/* _BLS12381OAQUEKeyringBundle_H_ */
 #include <asn_internal.h>

@@ -77,14 +77,14 @@ string getTypeId(asn_TYPE_descriptor_t *td) {
         return idJoiner(EntityKeyScheme, Ed25519Id);
     } else if (td == &asn_DEF_Public_Curve25519) {
         return idJoiner(EntityKeyScheme, Curve25519Id);
-    } else if (td == &asn_DEF_Params_BN256_IBE) {
-        return idJoiner(EntityKeyScheme, IbeBn256ParamsId);
-    } else if (td == &asn_DEF_Public_BN256_IBE) {
-        return idJoiner(EntityKeyScheme, IbeBn256PublicId);
-    } else if (td == &asn_DEF_Params_BN256_OAQUE) {
-        return idJoiner(EntityKeyScheme, OaqueBn256S20ParamsId);
+    } else if (td == &asn_DEF_Params_BLS12381_IBE) {
+        return idJoiner(EntityKeyScheme, IbeBLS12381ParamsId);
+    } else if (td == &asn_DEF_Public_BLS12381_IBE) {
+        return idJoiner(EntityKeyScheme, IbeBLS12381PublicId);
+    } else if (td == &asn_DEF_Params_BLS12381_OAQUE) {
+        return idJoiner(EntityKeyScheme, OaqueBLS12381S20ParamsId);
     } else if (td == &asn_DEF_Public_OAQUE) {
-        return idJoiner(EntityKeyScheme, OaqueBn256S20AttributesetId);
+        return idJoiner(EntityKeyScheme, OaqueBLS12381S20AttributesetId);
     } else if (td == &asn_DEF_AttestationBody) {
         return idJoiner(AttestationBodyScheme, UnencryptedBodyScheme);
     } else if (td == &asn_DEF_WR1BodyCiphertext) {

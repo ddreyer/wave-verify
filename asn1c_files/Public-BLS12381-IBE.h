@@ -5,14 +5,14 @@
  * 	`asn1c -fcompound-names`
  */
 
-#ifndef	_Public_BN256_IBE_H_
-#define	_Public_BN256_IBE_H_
+#ifndef	_Public_BLS12381_IBE_H_
+#define	_Public_BLS12381_IBE_H_
 
 
 #include <asn_application.h>
 
 /* Including external dependencies */
-#include "Params-BN256-IBE.h"
+#include "Params-BLS12381-IBE.h"
 #include <OCTET_STRING.h>
 #include <constr_SEQUENCE.h>
 
@@ -20,21 +20,21 @@
 extern "C" {
 #endif
 
-/* Public-BN256-IBE */
-typedef struct Public_BN256_IBE {
-	Params_BN256_IBE_t	 params;
+/* Public-BLS12381-IBE */
+typedef struct Public_BLS12381_IBE {
+	Params_BLS12381_IBE_t	 params;
 	OCTET_STRING_t	 id;
 	
 	/* Context for parsing across buffer boundaries */
 	asn_struct_ctx_t _asn_ctx;
-} Public_BN256_IBE_t;
+} Public_BLS12381_IBE_t;
 
 /* Implementation */
-extern asn_TYPE_descriptor_t asn_DEF_Public_BN256_IBE;
+extern asn_TYPE_descriptor_t asn_DEF_Public_BLS12381_IBE;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* _Public_BN256_IBE_H_ */
+#endif	/* _Public_BLS12381_IBE_H_ */
 #include <asn_internal.h>

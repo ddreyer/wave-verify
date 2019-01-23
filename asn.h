@@ -10,9 +10,9 @@
 #include <WaveExplicitProof.h>
 #include <Public-Ed25519.h>
 #include <Public-Curve25519.h>
-#include <Params-BN256-IBE.h>
-#include <Params-BN256-OAQUE.h>
-#include <Public-BN256-IBE.h>
+#include <Params-BLS12381-IBE.h>
+#include <Params-BLS12381-OAQUE.h>
+#include <Public-BLS12381-IBE.h>
 #include <Public-OAQUE.h>
 #include <AVKeyAES128-GCM.h>
 #include <HashKeccak-256.h>
@@ -36,10 +36,10 @@ const string WaveObjectIdentifier("1.3.6.1.4.1.51157");
 const string EntityKeyScheme("11");
 const string Ed25519Id("1");
 const string Curve25519Id("2");
-const string OaqueBn256S20AttributesetId("3");
-const string OaqueBn256S20ParamsId("4");
-const string IbeBn256ParamsId("5");
-const string IbeBn256PublicId("6");
+const string OaqueBLS12381S20AttributesetId("7");
+const string OaqueBLS12381S20ParamsId("8");
+const string IbeBLS12381ParamsId("9");
+const string IbeBLS12381PublicId("10");
 const string AttestationBodyScheme("3");
 const string UnencryptedBodyScheme("1");
 const string WR1BodySchemeV1("2");

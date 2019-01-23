@@ -17,14 +17,14 @@ static asn_TYPE_member_t asn_MBR_MessageKeyWR1_1[] = {
 		0, 0, /* No default value */
 		"envelope"
 		},
-	{ ATF_NOFLAGS, 0, offsetof(struct MessageKeyWR1, envelopeKey_ibe_bn256),
+	{ ATF_NOFLAGS, 0, offsetof(struct MessageKeyWR1, envelopeKey_ibe_BLS12381),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
 		0,
 		&asn_DEF_OCTET_STRING,
 		0,
 		{ 0, 0, 0 },
 		0, 0, /* No default value */
-		"envelopeKey-ibe-bn256"
+		"envelopeKey-ibe-BLS12381"
 		},
 	{ ATF_NOFLAGS, 0, offsetof(struct MessageKeyWR1, Namespace),
 		(ASN_TAG_CLASS_UNIVERSAL | (8 << 2)),
@@ -50,7 +50,7 @@ static const ber_tlv_tag_t asn_DEF_MessageKeyWR1_tags_1[] = {
 };
 static const asn_TYPE_tag2member_t asn_MAP_MessageKeyWR1_tag2el_1[] = {
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 0, 0, 1 }, /* envelope */
-    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, -1, 0 }, /* envelopeKey-ibe-bn256 */
+    { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, -1, 0 }, /* envelopeKey-ibe-BLS12381 */
     { (ASN_TAG_CLASS_UNIVERSAL | (8 << 2)), 2, 0, 1 }, /* namespace */
     { (ASN_TAG_CLASS_UNIVERSAL | (8 << 2)), 3, -1, 0 } /* namespaceLocation */
 };

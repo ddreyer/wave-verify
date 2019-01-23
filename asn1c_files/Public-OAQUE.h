@@ -12,7 +12,7 @@
 #include <asn_application.h>
 
 /* Including external dependencies */
-#include "Params-BN256-OAQUE.h"
+#include "Params-BLS12381-OAQUE.h"
 #include <OCTET_STRING.h>
 #include <asn_SEQUENCE_OF.h>
 #include <constr_SEQUENCE_OF.h>
@@ -24,7 +24,7 @@ extern "C" {
 
 /* Public-OAQUE */
 typedef struct Public_OAQUE {
-	Params_BN256_OAQUE_t	 params;
+	Params_BLS12381_OAQUE_t	 params;
 	struct Public_OAQUE__attributeset {
 		A_SEQUENCE_OF(OCTET_STRING_t) list;
 		

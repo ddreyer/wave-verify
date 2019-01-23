@@ -47,7 +47,7 @@ static asn_TYPE_member_t asn_MBR_Public_OAQUE_1[] = {
 	{ ATF_NOFLAGS, 0, offsetof(struct Public_OAQUE, params),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
 		0,
-		&asn_DEF_Params_BN256_OAQUE,
+		&asn_DEF_Params_BLS12381_OAQUE,
 		0,
 		{ 0, 0, 0 },
 		0, 0, /* No default value */

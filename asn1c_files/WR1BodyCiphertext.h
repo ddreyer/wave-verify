@@ -24,7 +24,7 @@ typedef struct WR1BodyCiphertext {
 	OCTET_STRING_t	 verifierBodyCiphertext;
 	OCTET_STRING_t	 proverBodyCiphertext;
 	OCTET_STRING_t	 envelopeCiphertext;
-	OCTET_STRING_t	 envelopeKey_ibe_bn256;
+	OCTET_STRING_t	 envelopeKey_ibe_BLS12381;
 	OCTET_STRING_t	 envelopeKey_curve25519;
 	OCTET_STRING_t	 envelopeKey_curve25519_attester;
 	

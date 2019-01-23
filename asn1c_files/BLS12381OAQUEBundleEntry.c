@@ -5,10 +5,10 @@
  * 	`asn1c -fcompound-names`
  */
 
-#include "BN256OAQUEBundleEntry.h"
+#include "BLS12381OAQUEBundleEntry.h"
 
 static asn_TYPE_member_t asn_MBR_Member_3[] = {
-	{ ATF_NOFLAGS, 0, offsetof(struct BN256OAQUEBundleEntry__partitionChange__Member, index),
+	{ ATF_NOFLAGS, 0, offsetof(struct BLS12381OAQUEBundleEntry__partitionChange__Member, index),
 		(ASN_TAG_CLASS_UNIVERSAL | (2 << 2)),
 		0,
 		&asn_DEF_NativeInteger,
@@ -17,7 +17,7 @@ static asn_TYPE_member_t asn_MBR_Member_3[] = {
 		0, 0, /* No default value */
 		"index"
 		},
-	{ ATF_NOFLAGS, 0, offsetof(struct BN256OAQUEBundleEntry__partitionChange__Member, content),
+	{ ATF_NOFLAGS, 0, offsetof(struct BLS12381OAQUEBundleEntry__partitionChange__Member, content),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
 		0,
 		&asn_DEF_OCTET_STRING,
@@ -35,8 +35,8 @@ static const asn_TYPE_tag2member_t asn_MAP_Member_tag2el_3[] = {
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, 0, 0 } /* content */
 };
 static asn_SEQUENCE_specifics_t asn_SPC_Member_specs_3 = {
-	sizeof(struct BN256OAQUEBundleEntry__partitionChange__Member),
-	offsetof(struct BN256OAQUEBundleEntry__partitionChange__Member, _asn_ctx),
+	sizeof(struct BLS12381OAQUEBundleEntry__partitionChange__Member),
+	offsetof(struct BLS12381OAQUEBundleEntry__partitionChange__Member, _asn_ctx),
 	asn_MAP_Member_tag2el_3,
 	2,	/* Count of tags in the map */
 	0, 0, 0,	/* Optional elements (not needed) */
@@ -74,8 +74,8 @@ static const ber_tlv_tag_t asn_DEF_partitionChange_tags_2[] = {
 	(ASN_TAG_CLASS_UNIVERSAL | (16 << 2))
 };
 static asn_SET_OF_specifics_t asn_SPC_partitionChange_specs_2 = {
-	sizeof(struct BN256OAQUEBundleEntry__partitionChange),
-	offsetof(struct BN256OAQUEBundleEntry__partitionChange, _asn_ctx),
+	sizeof(struct BLS12381OAQUEBundleEntry__partitionChange),
+	offsetof(struct BLS12381OAQUEBundleEntry__partitionChange, _asn_ctx),
 	0,	/* XER encoding is XMLDelimitedItemList */
 };
 static /* Use -fall-defs-global to expose */
@@ -95,8 +95,8 @@ asn_TYPE_descriptor_t asn_DEF_partitionChange_2 = {
 	&asn_SPC_partitionChange_specs_2	/* Additional specs */
 };
 
-asn_TYPE_member_t asn_MBR_BN256OAQUEBundleEntry_1[] = {
-	{ ATF_NOFLAGS, 0, offsetof(struct BN256OAQUEBundleEntry, partitionChange),
+asn_TYPE_member_t asn_MBR_BLS12381OAQUEBundleEntry_1[] = {
+	{ ATF_NOFLAGS, 0, offsetof(struct BLS12381OAQUEBundleEntry, partitionChange),
 		(ASN_TAG_CLASS_UNIVERSAL | (16 << 2)),
 		0,
 		&asn_DEF_partitionChange_2,
@@ -105,44 +105,44 @@ asn_TYPE_member_t asn_MBR_BN256OAQUEBundleEntry_1[] = {
 		0, 0, /* No default value */
 		"partitionChange"
 		},
-	{ ATF_NOFLAGS, 0, offsetof(struct BN256OAQUEBundleEntry, key),
+	{ ATF_NOFLAGS, 0, offsetof(struct BLS12381OAQUEBundleEntry, key),
 		(ASN_TAG_CLASS_UNIVERSAL | (4 << 2)),
 		0,
-		&asn_DEF_Private_BN256_OAQUE,
+		&asn_DEF_Private_BLS12381_OAQUE,
 		0,
 		{ 0, 0, 0 },
 		0, 0, /* No default value */
 		"key"
 		},
 };
-static const ber_tlv_tag_t asn_DEF_BN256OAQUEBundleEntry_tags_1[] = {
+static const ber_tlv_tag_t asn_DEF_BLS12381OAQUEBundleEntry_tags_1[] = {
 	(ASN_TAG_CLASS_UNIVERSAL | (16 << 2))
 };
-static const asn_TYPE_tag2member_t asn_MAP_BN256OAQUEBundleEntry_tag2el_1[] = {
+static const asn_TYPE_tag2member_t asn_MAP_BLS12381OAQUEBundleEntry_tag2el_1[] = {
     { (ASN_TAG_CLASS_UNIVERSAL | (4 << 2)), 1, 0, 0 }, /* key */
     { (ASN_TAG_CLASS_UNIVERSAL | (16 << 2)), 0, 0, 0 } /* partitionChange */
 };
-asn_SEQUENCE_specifics_t asn_SPC_BN256OAQUEBundleEntry_specs_1 = {
-	sizeof(struct BN256OAQUEBundleEntry),
-	offsetof(struct BN256OAQUEBundleEntry, _asn_ctx),
-	asn_MAP_BN256OAQUEBundleEntry_tag2el_1,
+asn_SEQUENCE_specifics_t asn_SPC_BLS12381OAQUEBundleEntry_specs_1 = {
+	sizeof(struct BLS12381OAQUEBundleEntry),
+	offsetof(struct BLS12381OAQUEBundleEntry, _asn_ctx),
+	asn_MAP_BLS12381OAQUEBundleEntry_tag2el_1,
 	2,	/* Count of tags in the map */
 	0, 0, 0,	/* Optional elements (not needed) */
 	-1,	/* First extension addition */
 };
-asn_TYPE_descriptor_t asn_DEF_BN256OAQUEBundleEntry = {
-	"BN256OAQUEBundleEntry",
-	"BN256OAQUEBundleEntry",
+asn_TYPE_descriptor_t asn_DEF_BLS12381OAQUEBundleEntry = {
+	"BLS12381OAQUEBundleEntry",
+	"BLS12381OAQUEBundleEntry",
 	&asn_OP_SEQUENCE,
-	asn_DEF_BN256OAQUEBundleEntry_tags_1,
-	sizeof(asn_DEF_BN256OAQUEBundleEntry_tags_1)
-		/sizeof(asn_DEF_BN256OAQUEBundleEntry_tags_1[0]), /* 1 */
-	asn_DEF_BN256OAQUEBundleEntry_tags_1,	/* Same as above */
-	sizeof(asn_DEF_BN256OAQUEBundleEntry_tags_1)
-		/sizeof(asn_DEF_BN256OAQUEBundleEntry_tags_1[0]), /* 1 */
+	asn_DEF_BLS12381OAQUEBundleEntry_tags_1,
+	sizeof(asn_DEF_BLS12381OAQUEBundleEntry_tags_1)
+		/sizeof(asn_DEF_BLS12381OAQUEBundleEntry_tags_1[0]), /* 1 */
+	asn_DEF_BLS12381OAQUEBundleEntry_tags_1,	/* Same as above */
+	sizeof(asn_DEF_BLS12381OAQUEBundleEntry_tags_1)
+		/sizeof(asn_DEF_BLS12381OAQUEBundleEntry_tags_1[0]), /* 1 */
 	{ 0, 0, SEQUENCE_constraint },
-	asn_MBR_BN256OAQUEBundleEntry_1,
+	asn_MBR_BLS12381OAQUEBundleEntry_1,
 	2,	/* Elements count */
-	&asn_SPC_BN256OAQUEBundleEntry_specs_1	/* Additional specs */
+	&asn_SPC_BLS12381OAQUEBundleEntry_specs_1	/* Additional specs */
 };
 

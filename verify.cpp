@@ -442,49 +442,15 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
             }
             ocall_print("valid entity signature");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
-            Public_Curve25519_t *ks = 0;
-            ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
-            if (ks == nullptr) {
-                return verify_rtree_error("entity key is null");
-            }
-            if (ks->size != 32) {
-                asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
-                return verify_rtree_error("key length is incorrect");
-            }
-            asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
             return verify_rtree_error("this key cannot perform certifications");
-        } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
-            Params_BN256_IBE_t *ks = 0;
-            ks = (Params_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_IBE);
-            if (ks == nullptr) {
-                return verify_rtree_error("entity key is null");
-            }
-            asn_DEF_Params_BN256_IBE.op->free_struct(&asn_DEF_Params_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
+        } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
             return verify_rtree_error("this key cannot perform certifications");
-        } else if (entKeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
-            Public_BN256_IBE_t *ks = 0;
-            ks = (Public_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BN256_IBE);
-            if (ks == nullptr) {
-                return verify_rtree_error("entity key is null");
-            }
-            asn_DEF_Public_BN256_IBE.op->free_struct(&asn_DEF_Public_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
-            return verify_rtree_error("this key cannot perform certifications");
-        } else if (entKeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
-            Params_BN256_OAQUE_t *ks = 0;
-            ks = (Params_BN256_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_OAQUE);
-            if (ks == nullptr) {
-                return verify_rtree_error("entity key is null");
-            }
-            asn_DEF_Params_BN256_OAQUE.op->free_struct(&asn_DEF_Params_BN256_OAQUE, ks, ASFM_FREE_EVERYTHING);
-            return verify_rtree_error("this key cannot perform certifications");
+        } else if (entKeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
+            return verify_rtree_error("this key cannot perform verification");
+        } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
+            return verify_rtree_error("this key cannot perform verification");
         } else if (entKeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
-            Public_OAQUE_t *ks = 0;
-            ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
-            if (ks == nullptr) {
-                return verify_rtree_error("entity key is null");
-            }
-            asn_DEF_Public_OAQUE.op->free_struct(&asn_DEF_Public_OAQUE, ks, ASFM_FREE_EVERYTHING);
-            return verify_rtree_error("this key cannot perform certifications");
+            return verify_rtree_error("this key cannot perform verification");
         } else {
             return verify_rtree_error("entity uses unsupported key scheme");
         }
@@ -498,6 +464,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
             EXTERNAL_t lkey = tbsKey->key;
             ANY_t type = lkey.encoding.choice.single_ASN1_type;
             string lkeyId = marshal(lkey.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+            // gofunc: EntityKeySchemeInstanceFor
             if (lkeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
                 Public_Ed25519_t *ks = 0;
                 ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
@@ -520,27 +487,27 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     return verify_rtree_error("key length is incorrect");
                 }
                 asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_IBE)) {
-                Params_BN256_IBE_t *ks = 0;
-                ks = (Params_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_IBE);
+            } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
+                Params_BLS12381_IBE_t *ks = 0;
+                ks = (Params_BLS12381_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_IBE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
-                asn_DEF_Params_BN256_IBE.op->free_struct(&asn_DEF_Params_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Public_BN256_IBE)) {
-                Public_BN256_IBE_t *ks = 0;
-                ks = (Public_BN256_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BN256_IBE);
+                asn_DEF_Params_BLS12381_IBE.op->free_struct(&asn_DEF_Params_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
+            } else if (lkeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
+                Public_BLS12381_IBE *ks = 0;
+                ks = (Public_BLS12381_IBE *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BLS12381_IBE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
-                asn_DEF_Public_BN256_IBE.op->free_struct(&asn_DEF_Public_BN256_IBE, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Params_BN256_OAQUE)) {
-                Params_BN256_OAQUE_t *ks = 0;
-                ks = (Params_BN256_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BN256_OAQUE);
+                asn_DEF_Public_BLS12381_IBE.op->free_struct(&asn_DEF_Public_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
+            } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
+                Params_BLS12381_OAQUE_t *ks = 0;
+                ks = (Params_BLS12381_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_OAQUE);
                 if (ks == nullptr) {
                     return verify_rtree_error("tbs key is null");
                 }
-                asn_DEF_Params_BN256_OAQUE.op->free_struct(&asn_DEF_Params_BN256_OAQUE, ks, ASFM_FREE_EVERYTHING);
+                asn_DEF_Params_BLS12381_OAQUE.op->free_struct(&asn_DEF_Params_BLS12381_OAQUE, ks, ASFM_FREE_EVERYTHING);
             } else if (lkeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
                 Public_OAQUE_t *ks = 0;
                 ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
