@@ -282,6 +282,8 @@ bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *super
     OCTET_STRING_t *lhs_ps = HashSchemeInstanceFor(subset->get_permissionSet());
     OCTET_STRING_t *rhs_ps = HashSchemeInstanceFor(superset->get_permissionSet());
     if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
         return false;
     }
     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
@@ -360,599 +362,706 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
 
 tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, vector<RTreePolicy_t *> *> verify_rtree_proof(char *proof, size_t proofSize) {
     string decodedProof(proof, proofSize);
+    // dynamically allocated memory and return variables
+    list<EntityItem> entList;
+    vector<AttestationItem> attestationList;
+    vector<OCTET_STRING_t *> pathEndEntities;
+    vector<RTreePolicy_t *> *pathpolicies = new vector<RTreePolicy_t *>();
+    vector<RTreeStatementItem *> *dedup_statements = new vector<RTreeStatementItem *>();
+    WaveExplicitProof_t *exp = 0;
+    OCTET_STRING_t *finalsubject = 0;
+    OCTET_STRING_t *lhs_ns = 0;
     long expiry = LONG_MAX;
+    string errorMessage = string("\nverify_rtree_proof succeeded\n");
+
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
-        return verify_rtree_error("failed to unmarshal");
+        errorMessage = string("failed to unmarshal");
+        goto errorReturn;
     }
 
-    WaveExplicitProof_t *exp = 0;
-    ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
-    exp = (WaveExplicitProof_t *) unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
-    asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-    if (exp == nullptr) {
-        return verify_rtree_error("failed to unmarshal");
+    {
+        ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+        exp = (WaveExplicitProof_t *) unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
+        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+        if (exp == nullptr) {
+            errorMessage = string("failed to unmarshal");
+            goto errorReturn;
+        }
     }
     
-    // parse entities
-    WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
-    list<EntityItem> entList;
-    int entIndex = 0;
-    while (entIndex < ents.list.count) {
-        ocall_print("\nParsing entity");
-        OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
-        string entStr((const char *) ent->buf, ent->size);
-        entIndex++;
+    {
+        // parse entities
+        WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
+        int entIndex = 0;
+        while (entIndex < ents.list.count) {
+            ocall_print("\nParsing entity");
+            OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
+            string entStr((const char *) ent->buf, ent->size);
+            entIndex++;
 
-        // gofunc: ParseEntity
-        WaveWireObject_t *wwoPtr = nullptr;
-        wwoPtr = (WaveWireObject_t *) unmarshal(ent->buf, ent->size, wwoPtr, &asn_DEF_WaveWireObject);
-        if (wwoPtr == nullptr) {
-            return verify_rtree_error("failed to unmarshal");
-        }
-
-        WaveEntity_t *entity = 0;
-        ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
-        entity = (WaveEntity_t *) unmarshal(type.buf, type.size, entity, &asn_DEF_WaveEntity);	/* pointer to decoded data */
-
-        if (entity == nullptr) {
-            // maybe this is an entity secret
-            WaveEntitySecret_t *es = 0;
-            es = (WaveEntitySecret_t *) unmarshal(type.buf, type.size, es, &asn_DEF_WaveEntitySecret);
-            if (es == nullptr) {
-                asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-                return verify_rtree_error("DER is not a wave entity");
+            // gofunc: ParseEntity
+            WaveWireObject_t *wwoPtr = nullptr;
+            wwoPtr = (WaveWireObject_t *) unmarshal(ent->buf, ent->size, wwoPtr, &asn_DEF_WaveWireObject);
+            if (wwoPtr == nullptr) {
+                errorMessage = string("failed to unmarshal");
+                goto errorReturn;
             }
-            entity = &(es->entity);
-        }
-        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
 
-        // gofunc: parseEntityFromObject
-        // check the signature
-        EntityPublicKey_t entKey = entity->tbs.verifyingKey;
-        type = entKey.key.encoding.choice.single_ASN1_type;
-        string entKeyId = marshal(entKey.key.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+            WaveEntity_t *entity = 0;
+            ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+            entity = (WaveEntity_t *) unmarshal(type.buf, type.size, entity, &asn_DEF_WaveEntity);	/* pointer to decoded data */
 
-        if (entKeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
-            Public_Ed25519_t *ks = 0;
-            ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
-            if (ks->size != 32) {
+            if (entity == nullptr) {
+                // maybe this is an entity secret
+                WaveEntitySecret_t *es = 0;
+                es = (WaveEntitySecret_t *) unmarshal(type.buf, type.size, es, &asn_DEF_WaveEntitySecret);
+                if (es == nullptr) {
+                    asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("DER is not a wave entity");
+                    goto errorReturn;
+                }
+                entity = &(es->entity);
+            }
+            asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+            EntityItem e(entity, entStr);
+            entList.push_back(e);
+
+            // gofunc: parseEntityFromObject
+            // check the signature
+            EntityPublicKey_t entKey = entity->tbs.verifyingKey;
+            type = entKey.key.encoding.choice.single_ASN1_type;
+            string entKeyId = marshal(entKey.key.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+
+            if (entKeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
+                Public_Ed25519_t *ks = 0;
+                ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
+                if (ks->size != 32) {
+                    asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("key length is incorrect");
+                    goto errorReturn;
+                }
+
+                // gofunc: VerifyCertify
+                // gofunc: HasCapability
+                if (!HasCapability(entity)) {
+                    asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("this key cannot perform certifications");
+                    goto errorReturn;
+                }
+
+                // gofunc: Verify
+                string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
+                string entSig((const char *) entity->signature.buf, entity->signature.size);
+                string ksStr((const char *) ks->buf, ks->size);
+
                 asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
-                return verify_rtree_error("key length is incorrect");
+                
+                if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
+                    (const unsigned char *) eData.c_str(), eData.length(), 
+                    (const unsigned char *) ksStr.c_str())) {
+                    errorMessage = string("entity ed25519 signature invalid");
+                    goto errorReturn;
+                }
+                ocall_print("valid entity signature");
+            } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
+                errorMessage = string("this key cannot perform certifications");
+                goto errorReturn;
+            } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
+                errorMessage = string("this key cannot perform certifications");
+                goto errorReturn;
+            } else if (entKeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
+                errorMessage = string("this key cannot perform verification");
+                goto errorReturn;
+            } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
+                errorMessage = string("this key cannot perform verification");
+                goto errorReturn;
+            } else if (entKeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
+                errorMessage = string("this key cannot perform verification");
+                goto errorReturn;
+            } else {
+                errorMessage = string("entity uses unsupported key scheme");
+                goto errorReturn;
+            }
+
+            // Entity appears ok, let's unpack it further
+            WaveEntityTbs_t::WaveEntityTbs__keys tbsKeys = entity->tbs.keys;
+            int tbsIndex = 0;
+            while (tbsIndex < tbsKeys.list.count) {
+                EntityPublicKey_t *tbsKey = tbsKeys.list.array[tbsIndex];
+                tbsIndex++;
+                EXTERNAL_t lkey = tbsKey->key;
+                ANY_t type = lkey.encoding.choice.single_ASN1_type;
+                string lkeyId = marshal(lkey.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+                // gofunc: EntityKeySchemeInstanceFor
+                if (lkeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
+                    Public_Ed25519_t *ks = 0;
+                    ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    if (ks->size != 32) {
+                        asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("key length is incorrect");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
+                } else if (lkeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
+                    Public_Curve25519_t *ks = 0;
+                    ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    if (ks->size != 32) {
+                        asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("key length is incorrect");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
+                } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
+                    Params_BLS12381_IBE_t *ks = 0;
+                    ks = (Params_BLS12381_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_IBE);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Params_BLS12381_IBE.op->free_struct(&asn_DEF_Params_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
+                } else if (lkeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
+                    Public_BLS12381_IBE *ks = 0;
+                    ks = (Public_BLS12381_IBE *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BLS12381_IBE);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Public_BLS12381_IBE.op->free_struct(&asn_DEF_Public_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
+                } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
+                    Params_BLS12381_OAQUE_t *ks = 0;
+                    ks = (Params_BLS12381_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_OAQUE);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Params_BLS12381_OAQUE.op->free_struct(&asn_DEF_Params_BLS12381_OAQUE, ks, ASFM_FREE_EVERYTHING);
+                } else if (lkeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
+                    Public_OAQUE_t *ks = 0;
+                    ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
+                    if (ks == nullptr) {
+                        errorMessage = string("tbs key is null");
+                        goto errorReturn;
+                    }
+                    asn_DEF_Public_OAQUE.op->free_struct(&asn_DEF_Public_OAQUE, ks, ASFM_FREE_EVERYTHING);
+                } else {
+                    errorMessage = string("tbs key uses unsupported key scheme");
+                    goto errorReturn;
+                }
+            }
+
+            long currExp = expiry_to_long(entity->tbs.validity.notAfter);
+            if (currExp < expiry) {
+                expiry = currExp;
+            }
+        }
+    }
+
+    {
+        // retrieve attestations
+        WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
+        int attIndex = 0;
+        while (attIndex < atsts.list.count) {
+            ocall_print("\nParsing attestation");
+            AttestationReference_t *atst = atsts.list.array[attIndex];
+            attIndex++;
+
+            AttestationReference_t::AttestationReference__keys keys = atst->keys;
+            AVKeyAES128_GCM_t *vfk = 0;
+            string verifierBodyKey;
+            string verifierBodyNonce;
+            int vfkLen = 0;
+            if (keys.list.count == 0) {
+                ocall_print("atst has no keys");
+            }
+
+            int keyIndex = 0;
+            while (keyIndex < keys.list.count) {
+                /* casting is needed due to some weirdness with the asn1c compiler
+                * https://github.com/vlm/asn1c/issues/296
+                */
+                AttestationVerifierKey_t *key = (AttestationVerifierKey_t *) keys.list.array[keyIndex];
+                ANY_t type = key->encoding.choice.single_ASN1_type;
+                vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
+                int vfkLen = 0;
+                if (vfk == nullptr) {
+                    ocall_print("atst key was not aes");
+                } else {
+                    vfkLen = vfk->size;
+                    string verifierKey(vfk->buf, vfk->buf + vfkLen);
+                    asn_DEF_AVKeyAES128_GCM.op->free_struct(&asn_DEF_AVKeyAES128_GCM, vfk, ASFM_FREE_EVERYTHING);  
+                    verifierBodyKey = verifierKey.substr(0, 16);
+                    verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
+                    break;
+                }
+                keyIndex++;
+            }
+
+            // gofunc: ParseAttestation
+            // parse attestation
+            OCTET_STRING_t *derEncodedData = atst->content;
+            WaveWireObject_t *wwoPtr = 0;
+            wwoPtr = (WaveWireObject_t *) unmarshal(derEncodedData->buf, derEncodedData->size, wwoPtr, &asn_DEF_WaveWireObject);
+            if (wwoPtr == nullptr) {
+                errorMessage = string("failed to unmarshal atst content");
+                goto errorReturn;
+            }
+            WaveAttestation_t *att = 0;
+            ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
+            att = (WaveAttestation_t *) unmarshal(type.buf, type.size, att, &asn_DEF_WaveAttestation);	/* pointer to decoded data */
+            asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+            if (att == nullptr) {
+                errorMessage = string("failed to unmarshal into Wave Attestation");
+                goto errorReturn;
+            }
+
+            // gofunc: DecryptBody
+            AttestationVerifierBody_t *decryptedBody;
+            string schemeID = marshal(att->tbs.body.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+            if (schemeID == getTypeId(&asn_DEF_AttestationBody)) {
+                asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                errorMessage = string("unencrypted body scheme, currently not supported");
+                goto errorReturn;
+            } else if (schemeID == getTypeId(&asn_DEF_WR1BodyCiphertext)) {
+                ocall_print("this is a wr1 body scheme");
+                // decrypt body
+                type = att->tbs.body.encoding.choice.single_ASN1_type;
+                WR1BodyCiphertext_t *wr1body = 0;
+                wr1body = (WR1BodyCiphertext_t *) unmarshal(type.buf, type.size, wr1body, &asn_DEF_WR1BodyCiphertext);
+                if (wr1body == nullptr) {
+                    asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("getting body ciphertext failed");
+                    goto errorReturn;
+                }
+                ocall_print("got wr1 body");
+                // checking subject HI instance
+                OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
+
+                if (vfk != nullptr) {
+                    ocall_print("decrypting attestation");
+                    OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
+                    int bodyLen = vbodyCipher.size;
+                    unsigned char verifierBodyDER[bodyLen];
+
+                    EVP_CIPHER_CTX *ctx;
+                    int outlen, ret;
+                    if(!(ctx = EVP_CIPHER_CTX_new())) {
+                        asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                        asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("Could not initialize decryption context");
+                        goto errorReturn;
+                    }
+                    /* Select cipher, key, and IV */
+                    if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL,
+                                (const unsigned char *) verifierBodyKey.c_str(), 
+                                (const unsigned char *) verifierBodyNonce.c_str())) {
+                        asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                        asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("Error setting aes decryption fields");
+                        goto errorReturn;
+                    }
+                    /* Decrypt ciphertext */
+                    if (1 != EVP_DecryptUpdate(ctx, verifierBodyDER, &outlen, 
+                        vbodyCipher.buf, bodyLen)) {
+                        asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                        asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("aes decryption failed");
+                        goto errorReturn;
+                    }
+                    EVP_CIPHER_CTX_free(ctx);
+                    unsigned char *hah = verifierBodyDER;
+                    string v((const char *)hah, bodyLen-16);
+                    ocall_print("aes decryption succeeded");
+
+                    asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
+
+                    //unmarshal into WR1VerifierBody
+                    WR1VerifierBody_t *vbody = 0;
+                    vbody = (WR1VerifierBody_t *) unmarshal((uint8_t *) verifierBodyDER, bodyLen-16, vbody, &asn_DEF_WR1VerifierBody);
+                    if (vbody == nullptr) {
+                        asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                        errorMessage = string("could not unmarshal into WR1VerifierBody");
+                        goto errorReturn;
+                    }        
+                    decryptedBody = &vbody->attestationVerifierBody;
+                }
+            } else {
+                errorMessage = string("unsupported body scheme");
+                asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att, ASFM_FREE_EVERYTHING);
+                goto errorReturn;
+            }
+
+            AttestationItem aItem(att, decryptedBody);
+            attestationList.push_back(aItem);
+
+            LocationURL_t *attesterLoc = 0;
+            type = decryptedBody->attesterLocation.encoding.choice.single_ASN1_type;
+            attesterLoc = (LocationURL_t *) unmarshal(type.buf, type.size, attesterLoc, &asn_DEF_LocationURL);
+            if (attesterLoc == nullptr) {
+                errorMessage = string("could not get attester loc");
+                goto errorReturn;
+            }
+            asn_DEF_LocationURL.op->free_struct(&asn_DEF_LocationURL, attesterLoc, ASFM_FREE_EVERYTHING);
+
+            WaveEntity_t *attester = 0;
+            string attestId = marshal(decryptedBody->attester.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+            type = decryptedBody->attester.encoding.choice.single_ASN1_type;
+            // gofunc: EntityByHashLoc
+            if (attestId == getTypeId(&asn_DEF_HashKeccak_256)) {
+                HashKeccak_256_t *attesterHash = 0;
+                attesterHash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashKeccak_256);
+                if (attesterHash == nullptr) {
+                    errorMessage = string("could not get attester hash");
+                    goto errorReturn;
+                }
+                if (attesterHash->size != 32) {
+                    asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("attester hash not valid");
+                    goto errorReturn;
+                }
+                // convert attestation hash to hex
+                string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
+                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
+
+                string attHashHex = string_to_hex(attesterHashStr);
+                // loop through entities
+                for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
+                    Keccak k(Keccak::Keccak256);
+                    string entityHash = k(it->get_der());
+                    if (attHashHex == entityHash) {
+                        ocall_print("found matching entity for attester");
+                        attester = it->get_entity();
+                        break;
+                    }
+                }
+            } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
+                HashSha3_256_t *attesterHash = 0;
+                attesterHash = (HashSha3_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
+                if (attesterHash == nullptr) {
+                    errorMessage = string("could not get attester hash");
+                    goto errorReturn;
+                }
+                if (attesterHash->size != 32) {
+                    asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("attester hash not valid");
+                    goto errorReturn;
+                }
+                asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
+            } else {
+                errorMessage = string("unsupported attester hash scheme id");
+                goto errorReturn;
+            }
+
+            // gofunc: VerifyBinding
+            // At this time we only know how to extract the key from an ed25519 outer signature
+            if (attester == nullptr) {
+                errorMessage = string("no attester");
+                goto errorReturn;
             }
 
             // gofunc: VerifyCertify
             // gofunc: HasCapability
-            if (!HasCapability(entity)) {
-                return verify_rtree_error("this key cannot perform certifications");
+            if (!HasCapability(attester)) {
+                errorMessage = string("this key cannot perform certifications");
+                goto errorReturn;
+            }
+
+            SignedOuterKey_t *binding = 0;
+            type = decryptedBody->outerSignatureBinding.encoding.choice.single_ASN1_type;
+            binding = (SignedOuterKey_t *) unmarshal(type.buf, type.size, binding, &asn_DEF_SignedOuterKey);
+            if (binding == nullptr) {
+                errorMessage = string("outer signature binding not supported/this is not really a signed outer key");
+                goto errorReturn;
             }
 
             // gofunc: Verify
-            string eData = marshal(&entity->tbs, &asn_DEF_WaveEntityTbs);
-            string entSig((const char *) entity->signature.buf, entity->signature.size);
-            string ksStr((const char *) ks->buf, ks->size);
-
-            asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
-            
-            if (!ed25519_verify((const unsigned char *) entSig.c_str(), 
-                (const unsigned char *) eData.c_str(), eData.length(), 
-                (const unsigned char *) ksStr.c_str())) {
-                return verify_rtree_error("entity ed25519 signature invalid");
+            string encodedData = marshal(&binding->tbs, &asn_DEF_SignedOuterKeyTbs);
+            Public_Ed25519_t *attesterKey = 0;
+            type = attester->tbs.verifyingKey.key.encoding.choice.single_ASN1_type;
+            attesterKey = (Public_Ed25519_t *) unmarshal(type.buf, type.size, attesterKey, &asn_DEF_Public_Ed25519);
+            if (attesterKey == nullptr) {
+                asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+                errorMessage = string("couldn't unmarshal attesterKey");
+                goto errorReturn;
             }
-            ocall_print("valid entity signature");
-        } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
-            return verify_rtree_error("this key cannot perform certifications");
-        } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
-            return verify_rtree_error("this key cannot perform certifications");
-        } else if (entKeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
-            return verify_rtree_error("this key cannot perform verification");
-        } else if (entKeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
-            return verify_rtree_error("this key cannot perform verification");
-        } else if (entKeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
-            return verify_rtree_error("this key cannot perform verification");
-        } else {
-            return verify_rtree_error("entity uses unsupported key scheme");
-        }
+            string bindingSig((const char *) binding->signature.buf, binding->signature.size);
+            string attKey((const char *) attesterKey->buf, attesterKey->size);
+            asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, attesterKey, ASFM_FREE_EVERYTHING);
 
-        // Entity appears ok, let's unpack it further
-        WaveEntityTbs_t::WaveEntityTbs__keys tbsKeys = entity->tbs.keys;
-        int tbsIndex = 0;
-        while (tbsIndex < tbsKeys.list.count) {
-            EntityPublicKey_t *tbsKey = tbsKeys.list.array[tbsIndex];
-            tbsIndex++;
-            EXTERNAL_t lkey = tbsKey->key;
-            ANY_t type = lkey.encoding.choice.single_ASN1_type;
-            string lkeyId = marshal(lkey.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
-            // gofunc: EntityKeySchemeInstanceFor
-            if (lkeyId == getTypeId(&asn_DEF_Public_Ed25519)) {
-                Public_Ed25519_t *ks = 0;
-                ks = (Public_Ed25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Ed25519);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                if (ks->size != 32) {
-                    asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
-                    return verify_rtree_error("key length is incorrect");
-                }
-                asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
-                Public_Curve25519_t *ks = 0;
-                ks = (Public_Curve25519_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_Curve25519);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                if (ks->size != 32) {
-                    asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
-                    return verify_rtree_error("key length is incorrect");
-                }
-                asn_DEF_Public_Curve25519.op->free_struct(&asn_DEF_Public_Curve25519, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_IBE)) {
-                Params_BLS12381_IBE_t *ks = 0;
-                ks = (Params_BLS12381_IBE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_IBE);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                asn_DEF_Params_BLS12381_IBE.op->free_struct(&asn_DEF_Params_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Public_BLS12381_IBE)) {
-                Public_BLS12381_IBE *ks = 0;
-                ks = (Public_BLS12381_IBE *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_BLS12381_IBE);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                asn_DEF_Public_BLS12381_IBE.op->free_struct(&asn_DEF_Public_BLS12381_IBE, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Params_BLS12381_OAQUE)) {
-                Params_BLS12381_OAQUE_t *ks = 0;
-                ks = (Params_BLS12381_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Params_BLS12381_OAQUE);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                asn_DEF_Params_BLS12381_OAQUE.op->free_struct(&asn_DEF_Params_BLS12381_OAQUE, ks, ASFM_FREE_EVERYTHING);
-            } else if (lkeyId == getTypeId(&asn_DEF_Public_OAQUE)) {
-                Public_OAQUE_t *ks = 0;
-                ks = (Public_OAQUE_t *) unmarshal(type.buf, type.size, ks, &asn_DEF_Public_OAQUE);
-                if (ks == nullptr) {
-                    return verify_rtree_error("tbs key is null");
-                }
-                asn_DEF_Public_OAQUE.op->free_struct(&asn_DEF_Public_OAQUE, ks, ASFM_FREE_EVERYTHING);
-            } else {
-                return verify_rtree_error("tbs key uses unsupported key scheme");
+            if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
+                (const unsigned char *) encodedData.c_str(), encodedData.length(), 
+                (const unsigned char *) attKey.c_str())) {
+                asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+                errorMessage = string("outer signature binding invalid");
+                goto errorReturn;
+            }
+            ocall_print("valid outer signature binding" );
+
+            // Now we know the binding is valid, check the key is the same
+            if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
+                != getTypeId(&asn_DEF_Ed25519OuterSignature)) {
+                asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+                errorMessage = string("outer signature scheme invalid");
+                goto errorReturn;
+            }
+
+            Ed25519OuterSignature_t *osig = 0;
+            type = att->outerSignature.encoding.choice.single_ASN1_type;
+            osig = (Ed25519OuterSignature_t *) unmarshal(type.buf, type.size, osig, &asn_DEF_Ed25519OuterSignature);
+            if (osig == nullptr) {
+                asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+                errorMessage = string("unknown outer signature type/signature scheme not supported");
+                goto errorReturn;
+            }
+
+            if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, &binding->tbs.verifyingKey, &osig->verifyingKey)) {
+                asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+                asn_DEF_Ed25519OuterSignature.op->free_struct(&asn_DEF_Ed25519OuterSignature, osig, ASFM_FREE_EVERYTHING);
+                errorMessage = string("bound key does not match");
+                goto errorReturn;
+            }
+            // check signature
+            // gofunc: VerifySignature
+            string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
+            OCTET_STRING_t vKey = osig->verifyingKey;
+            OCTET_STRING_t sig = osig->signature;
+            string s((const char *) sig.buf, sig.size);
+            string v((const char *) vKey.buf, vKey.size);
+            asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
+            asn_DEF_Ed25519OuterSignature.op->free_struct(&asn_DEF_Ed25519OuterSignature, osig, ASFM_FREE_EVERYTHING);
+            /* verify the signature */
+            if (!ed25519_verify((const unsigned char *) s.c_str(), 
+                    (const unsigned char *) encData.c_str(), encData.length(), 
+                    (const unsigned char *) v.c_str())) {
+                errorMessage = string("invalid outer signature");
+                goto errorReturn;
+            }
+            ocall_print("valid outer signature");
+
+            long currExp = expiry_to_long(decryptedBody->validity.notAfter);
+            if (currExp < expiry) {
+                expiry = currExp;
             }
         }
-
-        long currExp = expiry_to_long(entity->tbs.validity.notAfter);
-        if (currExp < expiry) {
-            expiry = currExp;
-        }
-
-        EntityItem e(entity, entStr);
-        entList.push_back(e);
     }
 
-    // retrieve attestations
-    WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
-    vector<AttestationItem> attestationList;
-    int attIndex = 0;
-    while (attIndex < atsts.list.count) {
-        ocall_print("\nParsing attestation");
-        AttestationReference_t *atst = atsts.list.array[attIndex];
-        attIndex++;
-
-        AttestationReference_t::AttestationReference__keys keys = atst->keys;
-        AVKeyAES128_GCM_t *vfk = 0;
-        string verifierBodyKey;
-        string verifierBodyNonce;
-        int vfkLen = 0;
-        if (keys.list.count == 0) {
-            ocall_print("atst has no keys");
-        }
-
-        int keyIndex = 0;
-        while (keyIndex < keys.list.count) {
-            /* casting is needed due to some weirdness with the asn1c compiler
-             * https://github.com/vlm/asn1c/issues/296
-             */
-            AttestationVerifierKey_t *key = (AttestationVerifierKey_t *) keys.list.array[keyIndex];
-            ANY_t type = key->encoding.choice.single_ASN1_type;
-            vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
-            int vfkLen = 0;
-            if (vfk == nullptr) {
-                ocall_print("atst key was not aes");
-            } else {
-                vfkLen = vfk->size;
-                string verifierKey(vfk->buf, vfk->buf + vfkLen);
-                asn_DEF_AVKeyAES128_GCM.op->free_struct(&asn_DEF_AVKeyAES128_GCM, vfk, ASFM_FREE_EVERYTHING);  
-                verifierBodyKey = verifierKey.substr(0, 16);
-                verifierBodyNonce = verifierKey.substr(16, verifierKey.length());
-                break;
+    {
+        // now verify the paths
+        WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
+        ocall_print("\nPaths retrieved");
+        int pathIndex = 0;
+        while (pathIndex < paths.list.count) {
+            WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
+            pathIndex++;
+            int pIndex = 0;
+            if (p->list.count == 0) {
+                errorMessage = string("path of length 0");
+                goto errorReturn;
             }
-            keyIndex++;
-        }
-
-        // gofunc: ParseAttestation
-        // parse attestation
-        OCTET_STRING_t *derEncodedData = atst->content;
-        WaveWireObject_t *wwoPtr = 0;
-        wwoPtr = (WaveWireObject_t *) unmarshal(derEncodedData->buf, derEncodedData->size, wwoPtr, &asn_DEF_WaveWireObject);
-        if (wwoPtr == nullptr) {
-            return verify_rtree_error("failed to unmarshal atst content");
-        }
-        WaveAttestation_t *att = 0;
-        ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
-        att = (WaveAttestation_t *) unmarshal(type.buf, type.size, att, &asn_DEF_WaveAttestation);	/* pointer to decoded data */
-        asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-        if (att == nullptr) {
-            return verify_rtree_error("failed to unmarshal into Wave Attestation");
-        }
-
-        // gofunc: DecryptBody
-        AttestationVerifierBody_t *decryptedBody;
-        string schemeID = marshal(att->tbs.body.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
-        if (schemeID == getTypeId(&asn_DEF_AttestationBody)) {
-            ocall_print("unencrypted body scheme, currently not supported");
-        } else if (schemeID == getTypeId(&asn_DEF_WR1BodyCiphertext)) {
-            ocall_print("this is a wr1 body scheme");
-            // decrypt body
-            type = att->tbs.body.encoding.choice.single_ASN1_type;
-            WR1BodyCiphertext_t *wr1body = 0;
-            wr1body = (WR1BodyCiphertext_t *) unmarshal(type.buf, type.size, wr1body, &asn_DEF_WR1BodyCiphertext);
-            if (wr1body == nullptr) {
-                return verify_rtree_error("getting body ciphertext failed");
-            }
-            ocall_print("got wr1 body");
-            // checking subject HI instance
-            OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
-            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
-
-            if (vfk != nullptr) {
-                ocall_print("decrypting attestation");
-                OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
-                int bodyLen = vbodyCipher.size;
-                unsigned char verifierBodyDER[bodyLen];
-
-                EVP_CIPHER_CTX *ctx;
-                int outlen, ret;
-                if(!(ctx = EVP_CIPHER_CTX_new())) {
-                    return verify_rtree_error("Could not initialize decryption context");
-                }
-                /* Select cipher, key, and IV */
-                if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL,
-                            (const unsigned char *) verifierBodyKey.c_str(), 
-                            (const unsigned char *) verifierBodyNonce.c_str())) {
-                    return verify_rtree_error("Error setting aes decryption fields");
-                }
-                /* Decrypt ciphertext */
-                if (1 != EVP_DecryptUpdate(ctx, verifierBodyDER, &outlen, 
-                    vbodyCipher.buf, bodyLen)) {
-                    return verify_rtree_error("aes decryption failed");
-                }
-                EVP_CIPHER_CTX_free(ctx);
-                unsigned char *hah = verifierBodyDER;
-                string v((const char *)hah, bodyLen-16);
-                ocall_print("aes decryption succeeded");
-
-                asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
-
-                //unmarshal into WR1VerifierBody
-                WR1VerifierBody_t *vbody = 0;
-                vbody = (WR1VerifierBody_t *) unmarshal((uint8_t *) verifierBodyDER, bodyLen-16, vbody, &asn_DEF_WR1VerifierBody);
-                if (vbody == nullptr) {
-                    return verify_rtree_error("could not unmarshal into WR1VerifierBody");
-                }        
-                decryptedBody = &vbody->attestationVerifierBody;
-            }
-        } else {
-            return verify_rtree_error("unsupported body scheme");
-        }
-
-        LocationURL_t *attesterLoc = 0;
-        type = decryptedBody->attesterLocation.encoding.choice.single_ASN1_type;
-        attesterLoc = (LocationURL_t *) unmarshal(type.buf, type.size, attesterLoc, &asn_DEF_LocationURL);
-        if (attesterLoc == nullptr) {
-            return verify_rtree_error("could not get attester loc");
-        }
-        asn_DEF_LocationURL.op->free_struct(&asn_DEF_LocationURL, attesterLoc, ASFM_FREE_EVERYTHING);
-
-        WaveEntity_t *attester = 0;
-        string attestId = marshal(decryptedBody->attester.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
-        type = decryptedBody->attester.encoding.choice.single_ASN1_type;
-        // gofunc: EntityByHashLoc
-        if (attestId == getTypeId(&asn_DEF_HashKeccak_256)) {
-            HashKeccak_256_t *attesterHash = 0;
-            attesterHash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashKeccak_256);
-            if (attesterHash == nullptr) {
-                return verify_rtree_error("could not get attester hash");
-            }
-            if (attesterHash->size != 32) {
-                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
-                return verify_rtree_error("attester hash not valid");
-            }
-            // convert attestation hash to hex
-            string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
-            asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
-
-            string attHashHex = string_to_hex(attesterHashStr);
-            // loop through entities
-            for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
-                Keccak k(Keccak::Keccak256);
-                string entityHash = k(it->get_der());
-                if (attHashHex == entityHash) {
-                    ocall_print("found matching entity for attester");
-                    attester = it->get_entity();
-                    break;
-                }
-            }
-        } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
-            HashSha3_256_t *attesterHash = 0;
-            attesterHash = (HashSha3_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
-            if (attesterHash == nullptr) {
-                return verify_rtree_error("could not get attester hash");
-            }
-            if (attesterHash->size != 32) {
-                asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
-                return verify_rtree_error("attester hash not valid");
-            }
-            asn_DEF_HashSha3_256.op->free_struct(&asn_DEF_HashSha3_256, attesterHash, ASFM_FREE_EVERYTHING);
-        } else {
-            return verify_rtree_error("unsupported attester hash scheme id");
-        }
-
-        SignedOuterKey_t *binding = 0;
-        type = decryptedBody->outerSignatureBinding.encoding.choice.single_ASN1_type;
-        binding = (SignedOuterKey_t *) unmarshal(type.buf, type.size, binding, &asn_DEF_SignedOuterKey);
-        if (binding == nullptr) {
-            return verify_rtree_error("outer signature binding not supported/this is not really a signed outer key");
-        }
-
-        // gofunc: VerifyBinding
-        // At this time we only know how to extract the key from an ed25519 outer signature
-        Ed25519OuterSignature_t *osig = 0;
-        type = att->outerSignature.encoding.choice.single_ASN1_type;
-        osig = (Ed25519OuterSignature_t *) unmarshal(type.buf, type.size, osig, &asn_DEF_Ed25519OuterSignature);
-        if (osig == nullptr) {
-            return verify_rtree_error("unknown outer signature type/signature scheme not supported");
-        }
-
-        if (attester == nullptr) {
-            return verify_rtree_error("no attester");
-        }
-
-        // gofunc: VerifyCertify
-        // gofunc: HasCapability
-        if (!HasCapability(attester)) {
-            return verify_rtree_error("this key cannot perform certifications");
-        }
-
-        // gofunc: Verify
-        string encodedData = marshal(&binding->tbs, &asn_DEF_SignedOuterKeyTbs);
-
-        Public_Ed25519_t *attesterKey = 0;
-        type = attester->tbs.verifyingKey.key.encoding.choice.single_ASN1_type;
-        attesterKey = (Public_Ed25519_t *) unmarshal(type.buf, type.size, attesterKey, &asn_DEF_Public_Ed25519);
-        if (attesterKey == nullptr) {
-            return verify_rtree_error("couldn't unmarshal attesterKey");
-        }
-        string bindingSig((const char *) binding->signature.buf, binding->signature.size);
-        string attKey((const char *) attesterKey->buf, attesterKey->size);
-        asn_DEF_Public_Ed25519.op->free_struct(&asn_DEF_Public_Ed25519, attesterKey, ASFM_FREE_EVERYTHING);
-
-        if (!ed25519_verify((const unsigned char *) bindingSig.c_str(), 
-            (const unsigned char *) encodedData.c_str(), encodedData.length(), 
-            (const unsigned char *) attKey.c_str())) {
-            return verify_rtree_error("outer signature binding invalid");
-        }
-        ocall_print("valid outer signature binding" );
-
-        // Now we know the binding is valid, check the key is the same
-        if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
-            != getTypeId(&asn_DEF_Ed25519OuterSignature)) {
-            return verify_rtree_error("outer signature scheme invalid");
-        }
-
-        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, &binding->tbs.verifyingKey, &osig->verifyingKey)) {
-            return verify_rtree_error("bound key does not match");
-        }
-        // check signature
-        // gofunc: VerifySignature
-        string encData = marshal(&att->tbs, &asn_DEF_WaveAttestationTbs);
-        OCTET_STRING_t vKey = osig->verifyingKey;
-        OCTET_STRING_t sig = osig->signature;
-        string s((const char *) sig.buf, sig.size);
-        string v((const char *) vKey.buf, vKey.size);
-        /* verify the signature */
-        if (!ed25519_verify((const unsigned char *) s.c_str(), 
-                (const unsigned char *) encData.c_str(), encData.length(), 
-                (const unsigned char *) v.c_str())) {
-            return verify_rtree_error("invalid outer signature");
-        }
-        ocall_print("valid outer signature");
-
-        long currExp = expiry_to_long(decryptedBody->validity.notAfter);
-        if (currExp < expiry) {
-            expiry = currExp;
-        }
-
-        asn_DEF_SignedOuterKey.op->free_struct(&asn_DEF_SignedOuterKey, binding, ASFM_FREE_EVERYTHING);
-        asn_DEF_Ed25519OuterSignature.op->free_struct(&asn_DEF_Ed25519OuterSignature, osig, ASFM_FREE_EVERYTHING);
-        AttestationItem aItem(att, decryptedBody);
-        attestationList.push_back(aItem);
-    }
-
-    // now verify the paths
-    vector<RTreePolicy_t *> *pathpolicies = new vector<RTreePolicy_t *>();
-    vector<OCTET_STRING_t *> *pathEndEntities = new vector<OCTET_STRING_t *>();
-    WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
-    ocall_print("\nPaths retrieved");
-    int pathIndex = 0;
-    while (pathIndex < paths.list.count) {
-        WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
-        pathIndex++;
-        int pIndex = 0;
-        if (p->list.count == 0) {
-            return verify_rtree_error("path of length 0");
-        }
-        long *pathNum = p->list.array[pIndex];
-        pIndex++;
-        try {
-            attestationList.at(*pathNum); 
-        } catch (...) {
-            return verify_rtree_error("proof refers to non-included attestation");
-        }
-
-        AttestationItem currAttItem = attestationList.at(*pathNum);
-        WaveAttestation_t *currAtt = currAttItem.get_att();
-        // gofunc: Subject
-        // gofunc: HashSchemeInstanceFor
-        OCTET_STRING_t *cursubj = HashSchemeInstanceFor(currAtt);
-
-        // gofunc: LocationSchemeInstanceFor
-        LocationURL_t *cursubloc = LocationSchemeInstanceFor(currAtt);
-
-        // gofunc: PolicySchemeInstanceFor
-        AttestationVerifierBody_t *currBody = currAttItem.get_body();
-        RTreePolicy_t *policy = PolicySchemeInstanceFor(currBody);
-
-        while (pIndex < p->list.count) {
-            pathNum = p->list.array[pIndex];
+            long *pathNum = p->list.array[pIndex];
             pIndex++;
             try {
                 attestationList.at(*pathNum); 
             } catch (...) {
-                return verify_rtree_error("proof refers to non-included attestation");
+                errorMessage = string("proof refers to non-included attestation");
+                goto errorReturn;
             }
 
-            AttestationItem nextAttItem = attestationList.at(*pathNum);
-            WaveAttestation_t *nextAtt = currAttItem.get_att();
+            AttestationItem currAttItem = attestationList.at(*pathNum);
+            WaveAttestation_t *currAtt = currAttItem.get_att();
+            // gofunc: Subject
             // gofunc: HashSchemeInstanceFor
-            OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(nextAtt);
+            OCTET_STRING_t *cursubj = HashSchemeInstanceFor(currAtt);
 
             // gofunc: LocationSchemeInstanceFor
-            LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
-
-            if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
-                return verify_rtree_error("path has broken links");
-            }
-            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
+            LocationURL_t *cursubloc = LocationSchemeInstanceFor(currAtt);
 
             // gofunc: PolicySchemeInstanceFor
-            AttestationVerifierBody_t *nextBody = nextAttItem.get_body();
-            RTreePolicy_t *nextPolicy = PolicySchemeInstanceFor(nextBody);
+            AttestationVerifierBody_t *currBody = currAttItem.get_body();
+            RTreePolicy_t *policy = PolicySchemeInstanceFor(currBody);
 
-            // gofunc: Intersect
-            OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(nextPolicy);
-            OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+            while (pIndex < p->list.count) {
+                pathNum = p->list.array[pIndex];
+                pIndex++;
+                try {
+                    attestationList.at(*pathNum); 
+                } catch (...) {
+                    errorMessage = string("proof refers to non-included attestation");
+                    goto errorReturn;
+                }
+
+                AttestationItem nextAttItem = attestationList.at(*pathNum);
+                WaveAttestation_t *nextAtt = currAttItem.get_att();
+                // gofunc: HashSchemeInstanceFor
+                OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(nextAtt);
+
+                // gofunc: LocationSchemeInstanceFor
+                LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
+
+                if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("path has broken links");
+                    goto errorReturn;
+                }
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
+
+                // gofunc: PolicySchemeInstanceFor
+                AttestationVerifierBody_t *nextBody = nextAttItem.get_body();
+                RTreePolicy_t *nextPolicy = PolicySchemeInstanceFor(nextBody);
+
+                // gofunc: Intersect
+                OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(nextPolicy);
+                OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+                // not doing multihash
+                if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
+                    errorMessage = string("different authority domain");
+                    goto errorReturn;
+                }
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
+                
+                // gofunc: intersectStatement
+                vector<RTreeStatementItem *> statements;
+                RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
+                int lhs_index = 0;
+                while (lhs_index < policyStatements.list.count) {
+                    RTreeStatement_t *leftStatement = policyStatements.list.array[lhs_index];
+                    lhs_index++;
+                    RTreePolicy_t::RTreePolicy__statements nextPolicyStatements = nextPolicy->statements;
+                    int rhs_index = 0;
+                    while (rhs_index < nextPolicyStatements.list.count) {
+                        RTreeStatement_t *rightStatement = nextPolicyStatements.list.array[rhs_index];
+                        rhs_index++;
+                        OCTET_STRING_t *lhs_ps = HashSchemeInstanceFor(&leftStatement->permissionSet);
+                        OCTET_STRING_t *rhs_ps = HashSchemeInstanceFor(&rightStatement->permissionSet);
+                        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
+                            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
+                            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
+                            continue;
+                        }
+                        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
+                        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
+                        
+                        unordered_map <string, bool> lhs_perms;
+                        int lpermIdx = 0;
+                        while (lpermIdx < leftStatement->permissions.list.count) {
+                            UTF8String_t *lperm = leftStatement->permissions.list.array[lpermIdx];
+                            lpermIdx++;
+                            lhs_perms[string((const char *) lperm->buf, lperm->size)] = true;
+                        }
+                        list<string> intersectionPerms;
+                        int rpermIdx = 0;
+                        while (rpermIdx < rightStatement->permissions.list.count) {
+                            UTF8String_t *rperm = rightStatement->permissions.list.array[rpermIdx];
+                            rpermIdx++;
+                            string rpermStr = string((const char *) rperm->buf, rperm->size);
+                            if (lhs_perms[rpermStr]) {
+                                intersectionPerms.push_back(rpermStr);
+                            }
+                        }
+                        if (intersectionPerms.size() == 0) {
+                            continue;
+                        }
+                        // gofunc: RestrictBy
+                        string from = string((const char *) leftStatement->resource.buf, leftStatement->resource.size);
+                        string by = string((const char *) rightStatement->resource.buf, rightStatement->resource.size);
+                        string intersectionResource = RestrictBy(from, by);
+
+                        if (intersectionResource.empty()) {
+                            RTreeStatementItem *item = new RTreeStatementItem(&leftStatement->permissionSet, intersectionPerms, intersectionResource);
+                            statements.push_back(item);
+                        }
+                    }   
+                }
+
+                vector<RTreeStatementItem *> dedup_statements;
+                computeStatements(&statements, &dedup_statements);
+                int indirections;
+                if (policy->indirections < nextPolicy->indirections) {
+                    indirections = policy->indirections - 1;
+                } else {
+                    indirections = nextPolicy->indirections - 1;
+                }
+                asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, nextPolicy, ASFM_FREE_EVERYTHING);
+                
+                // Check errors
+                if (indirections < 0) {
+                    errorMessage = string("insufficient permitted indirections");
+                    goto errorReturn;
+                }
+                if (dedup_statements.size() > PermittedCombinedStatements) {
+                    errorMessage = string("statements form too many combinations");
+                    goto errorReturn;
+                }
+                cursubj = nextAttest;
+                LocationURL_t *cursubloc = nextAttLoc;
+            }
+            pathpolicies->push_back(policy);
+            pathEndEntities.push_back(cursubj);
+            LocationURL_t *subjectLocation = cursubloc;
+        }
+    }
+
+    {
+        // Now combine the policies together
+        ocall_print("Paths verified, now combining the policies");
+        RTreePolicy_t *aggregatepolicy = pathpolicies->at(0);
+        lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
+        appendStatements(dedup_statements, &(aggregatepolicy->statements));
+        finalsubject = pathEndEntities.at(0);
+        for (int idx = 1; idx < pathpolicies->size(); idx++) {
+            if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities.at(idx))) {
+                errorMessage = string("paths don't terminate at same entity");
+                goto errorReturn;
+            }
+            // gofunc: Union
+            OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies->at(idx));
             // not doing multihash
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
-                return verify_rtree_error("different authority domain");
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
+                errorMessage = string("different authority domain");
+                goto errorReturn;
             }
             asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
-            asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
             
-            // gofunc: intersectStatement
             vector<RTreeStatementItem *> statements;
-            RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
-            int lhs_index = 0;
-            while (lhs_index < policyStatements.list.count) {
-                RTreeStatement_t *leftStatement = policyStatements.list.array[lhs_index];
-                lhs_index++;
-                RTreePolicy_t::RTreePolicy__statements nextPolicyStatements = nextPolicy->statements;
-                int rhs_index = 0;
-                while (rhs_index < nextPolicyStatements.list.count) {
-                    RTreeStatement_t *rightStatement = nextPolicyStatements.list.array[rhs_index];
-                    rhs_index++;
-                    OCTET_STRING_t *lhs_ps = HashSchemeInstanceFor(&leftStatement->permissionSet);
-                    OCTET_STRING_t *rhs_ps = HashSchemeInstanceFor(&rightStatement->permissionSet);
-                    if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, lhs_ps, rhs_ps)) {
-                        continue;
-                    }
-                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ps, ASFM_FREE_EVERYTHING);
-                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ps, ASFM_FREE_EVERYTHING);
-                    
-                    unordered_map <string, bool> lhs_perms;
-                    int lpermIdx = 0;
-                    while (lpermIdx < leftStatement->permissions.list.count) {
-                        UTF8String_t *lperm = leftStatement->permissions.list.array[lpermIdx];
-                        lpermIdx++;
-                        lhs_perms[string((const char *) lperm->buf, lperm->size)] = true;
-                    }
-                    list<string> intersectionPerms;
-                    int rpermIdx = 0;
-                    while (rpermIdx < rightStatement->permissions.list.count) {
-                        UTF8String_t *rperm = rightStatement->permissions.list.array[rpermIdx];
-                        rpermIdx++;
-                        string rpermStr = string((const char *) rperm->buf, rperm->size);
-                        if (lhs_perms[rpermStr]) {
-                            intersectionPerms.push_back(rpermStr);
-                        }
-                    }
-                    if (intersectionPerms.size() == 0) {
-                        continue;
-                    }
-                    // gofunc: RestrictBy
-                    string from = string((const char *) leftStatement->resource.buf, leftStatement->resource.size);
-                    string by = string((const char *) rightStatement->resource.buf, rightStatement->resource.size);
-                    string intersectionResource = RestrictBy(from, by);
-
-                    if (intersectionResource.empty()) {
-                        RTreeStatementItem *item = new RTreeStatementItem(&leftStatement->permissionSet, intersectionPerms, intersectionResource);
-                        statements.push_back(item);
-                    }
-                }   
+            RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies->at(idx)->statements);
+            appendStatements(&statements, rhsStatements);
+            computeStatements(&statements, dedup_statements);
+            if (dedup_statements->size() > PermittedCombinedStatements) {
+                errorMessage = string("statements form too many combinations");
+                goto errorReturn;
             }
-
-            vector<RTreeStatementItem *> dedup_statements;
-            computeStatements(&statements, &dedup_statements);
-            int indirections;
-            if (policy->indirections < nextPolicy->indirections) {
-                indirections = policy->indirections - 1;
-            } else {
-                indirections = nextPolicy->indirections - 1;
-            }
-            asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, nextPolicy, ASFM_FREE_EVERYTHING);
-            
-            // Check errors
-            if (indirections < 0) {
-                return verify_rtree_error("insufficient permitted indirections");
-            }
-            if (dedup_statements.size() > PermittedCombinedStatements) {
-                return verify_rtree_error("statements form too many combinations");
-            }
-            cursubj = nextAttest;
-            LocationURL_t *cursubloc = nextAttLoc;
         }
-        pathpolicies->push_back(policy);
-        pathEndEntities->push_back(cursubj);
-        LocationURL_t *subjectLocation = cursubloc;
+        goto Return;
     }
 
-    // Now combine the policies together
-    ocall_print("Paths verified, now combining the policies");
-    RTreePolicy_t *aggregatepolicy = pathpolicies->at(0);
-    OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
-    vector<RTreeStatementItem *> *dedup_statements = new vector<RTreeStatementItem *>();
-    appendStatements(dedup_statements, &(aggregatepolicy->statements));
-    OCTET_STRING_t *finalsubject = pathEndEntities->at(0);
-    for (int idx = 1; idx < pathpolicies->size(); idx++) {
-        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, finalsubject, pathEndEntities->at(idx))) {
-            return verify_rtree_error("paths don't terminate at same entity");
-        }
-        // gofunc: Union
-        OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies->at(idx));
-        // not doing multihash
-        if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
-            return verify_rtree_error("different authority domain");
-        }
-        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
-        
-        vector<RTreeStatementItem *> statements;
-        RTreePolicy_t::RTreePolicy__statements *rhsStatements = &(pathpolicies->at(idx)->statements);
-        appendStatements(&statements, rhsStatements);
-        computeStatements(&statements, dedup_statements);
-        if (dedup_statements->size() > PermittedCombinedStatements) {
-            return verify_rtree_error("statements form too many combinations");
-        }
+errorReturn:
+    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
+	asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
+	for (int i = 0; i < pathpolicies->size(); i++) {
+        asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pathpolicies->at(i), ASFM_FREE_EVERYTHING);
     }
-
+	delete pathpolicies;
+	for (int i = 0; i < dedup_statements->size(); i++) {
+		delete dedup_statements->at(i);
+	}
+	delete dedup_statements;
+    expiry = -1;
+Return:
+    ocall_print(errorMessage.c_str());
     asn_DEF_WaveExplicitProof.op->free_struct(&asn_DEF_WaveExplicitProof, exp, ASFM_FREE_EVERYTHING);
     for (auto & ent: entList) {
         asn_DEF_WaveEntity.op->free_struct(&asn_DEF_WaveEntity, ent.get_entity(), ASFM_FREE_EVERYTHING);
@@ -961,9 +1070,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         asn_DEF_WaveAttestation.op->free_struct(&asn_DEF_WaveAttestation, att.get_att(), ASFM_FREE_EVERYTHING);
         asn_DEF_AttestationVerifierBody.op->free_struct(&asn_DEF_AttestationVerifierBody, att.get_body(), ASFM_FREE_EVERYTHING);
     }
-    for (int i = 1; i < pathEndEntities->size(); i++) {
-        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities->at(i), ASFM_FREE_EVERYTHING);
+    for (int i = 1; i < pathEndEntities.size(); i++) {
+        asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, pathEndEntities.at(i), ASFM_FREE_EVERYTHING);
     }
-    delete pathEndEntities;
     return {finalsubject, lhs_ns, dedup_statements, expiry, pathpolicies};
 }
