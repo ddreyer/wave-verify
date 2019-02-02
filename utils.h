@@ -6,6 +6,14 @@
 
 using namespace std;
 
+// #define EDEBUG 0
+
+#ifdef EDEBUG
+  #define enclave_print(...) ocall_print(__VA_ARGS__)
+#else
+  #define enclave_print(...)
+#endif
+
 /* useful functions for debugging */
 string string_to_hex(const string& input);
 

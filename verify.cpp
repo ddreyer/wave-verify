@@ -69,24 +69,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
         HashKeccak_256_t *attest = 0;
         attest = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashKeccak_256);
         if (attest == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #1");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #1");
         }
         if (attest->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #2");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #2");
         }
         return attest;
     } else if (subId == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *attest = 0;
         attest = (HashSha3_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashSha3_256);
         if (attest == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #3");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #3");
         }
         if (attest->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #4");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #4");
         }
         return attest;
     } else {
-        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #5");
+        enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #5");
         return nullptr;
     }
 }
@@ -98,24 +98,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #6");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #6");
         }
         if (hash->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #7");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #7");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #8");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #8");
         }
         if (hash->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #9");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #9");
         }
         return hash;
     } else {
-        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #10");
+        enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #10");
         return nullptr;
     }
 }
@@ -127,24 +127,24 @@ OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #11");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #11");
         }
         if (hash->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #12");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #12");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #13");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #13");
         }
         if (hash->size != 32) {
-            ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #14");
+            enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #14");
         }
         return hash;
     } else {
-        ocall_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #15");
+        enclave_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #15");
         return nullptr;
     }
 }
@@ -154,7 +154,7 @@ LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
     LocationURL_t *lsurl = 0;
     lsurl = (LocationURL_t *) unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
-        ocall_print("subject location is unsupported");
+        enclave_print("subject location is unsupported");
         return nullptr;
     }
     return lsurl;
@@ -167,16 +167,16 @@ RTreePolicy_t * PolicySchemeInstanceFor(AttestationVerifierBody_t *attVerBody) {
     if (currBodyId == getTypeId(&asn_DEF_TrustLevel)) {
         TrustLevel_t *tp = 0;
         tp = (TrustLevel_t *) unmarshal(type.buf, type.size, tp, &asn_DEF_TrustLevel);
-        ocall_print("not supporting trust level policy right now");
+        enclave_print("not supporting trust level policy right now");
         return nullptr;
     } else if (currBodyId == getTypeId(&asn_DEF_RTreePolicy)) {
         policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
         if (policy == nullptr) {
-            ocall_print("unexpected policy error");
+            enclave_print("unexpected policy error");
         }
         return policy;
     } else {
-        ocall_print("unsupported policy scheme");
+        enclave_print("unsupported policy scheme");
         return nullptr;
     }
 }
@@ -356,7 +356,7 @@ long expiry_to_long(OCTET_STRING_t expiryStr) {
 }
 
 tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, vector<RTreePolicy_t *> *> verify_rtree_error(string message) {
-    ocall_print(message.c_str());
+    enclave_print(message.c_str());
     return {nullptr};
 }
 
@@ -396,7 +396,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         WaveExplicitProof_t::WaveExplicitProof__entities ents = exp->entities;
         int entIndex = 0;
         while (entIndex < ents.list.count) {
-            ocall_print("\nParsing entity");
+            enclave_print("\nParsing entity");
             OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
             string entStr((const char *) ent->buf, ent->size);
             entIndex++;
@@ -464,7 +464,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("entity ed25519 signature invalid");
                     goto errorReturn;
                 }
-                ocall_print("valid entity signature");
+                enclave_print("valid entity signature");
             } else if (entKeyId == getTypeId(&asn_DEF_Public_Curve25519)) {
                 errorMessage = string("this key cannot perform certifications");
                 goto errorReturn;
@@ -571,7 +571,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         WaveExplicitProof_t::WaveExplicitProof__attestations atsts = exp->attestations;
         int attIndex = 0;
         while (attIndex < atsts.list.count) {
-            ocall_print("\nParsing attestation");
+            enclave_print("\nParsing attestation");
             AttestationReference_t *atst = atsts.list.array[attIndex];
             attIndex++;
 
@@ -581,7 +581,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
             string verifierBodyNonce;
             int vfkLen = 0;
             if (keys.list.count == 0) {
-                ocall_print("atst has no keys");
+                enclave_print("atst has no keys");
             }
 
             int keyIndex = 0;
@@ -594,7 +594,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 vfk = (AVKeyAES128_GCM_t *) unmarshal(type.buf, type.size, vfk, &asn_DEF_AVKeyAES128_GCM);
                 int vfkLen = 0;
                 if (vfk == nullptr) {
-                    ocall_print("atst key was not aes");
+                    enclave_print("atst key was not aes");
                 } else {
                     vfkLen = vfk->size;
                     string verifierKey(vfk->buf, vfk->buf + vfkLen);
@@ -632,7 +632,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 errorMessage = string("unencrypted body scheme, currently not supported");
                 goto errorReturn;
             } else if (schemeID == getTypeId(&asn_DEF_WR1BodyCiphertext)) {
-                ocall_print("this is a wr1 body scheme");
+                enclave_print("this is a wr1 body scheme");
                 // decrypt body
                 type = att->tbs.body.encoding.choice.single_ASN1_type;
                 WR1BodyCiphertext_t *wr1body = 0;
@@ -642,13 +642,13 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("getting body ciphertext failed");
                     goto errorReturn;
                 }
-                ocall_print("got wr1 body");
+                enclave_print("got wr1 body");
                 // checking subject HI instance
                 OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
                 asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
 
                 if (vfk != nullptr) {
-                    ocall_print("decrypting attestation");
+                    enclave_print("decrypting attestation");
                     OCTET_STRING_t vbodyCipher = wr1body->verifierBodyCiphertext;
                     int bodyLen = vbodyCipher.size;
                     unsigned char verifierBodyDER[bodyLen];
@@ -681,7 +681,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     EVP_CIPHER_CTX_free(ctx);
                     unsigned char *hah = verifierBodyDER;
                     string v((const char *)hah, bodyLen-16);
-                    ocall_print("aes decryption succeeded");
+                    enclave_print("aes decryption succeeded");
 
                     asn_DEF_WR1BodyCiphertext.op->free_struct(&asn_DEF_WR1BodyCiphertext, wr1body, ASFM_FREE_EVERYTHING);
 
@@ -739,7 +739,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     Keccak k(Keccak::Keccak256);
                     string entityHash = k(it->get_der());
                     if (attHashHex == entityHash) {
-                        ocall_print("found matching entity for attester");
+                        enclave_print("found matching entity for attester");
                         attester = it->get_entity();
                         break;
                     }
@@ -805,7 +805,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 errorMessage = string("outer signature binding invalid");
                 goto errorReturn;
             }
-            ocall_print("valid outer signature binding" );
+            enclave_print("valid outer signature binding" );
 
             // Now we know the binding is valid, check the key is the same
             if (marshal(&binding->tbs.outerSignatureScheme, &asn_DEF_OBJECT_IDENTIFIER) 
@@ -846,8 +846,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 errorMessage = string("invalid outer signature");
                 goto errorReturn;
             }
-            ocall_print("valid outer signature");
-
+            enclave_print("valid outer signature");
             long currExp = expiry_to_long(decryptedBody->validity.notAfter);
             if (currExp < expiry) {
                 expiry = currExp;
@@ -858,7 +857,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
     {
         // now verify the paths
         WaveExplicitProof_t::WaveExplicitProof__paths paths = exp->paths;
-        ocall_print("\nPaths retrieved");
+        enclave_print("\nPaths retrieved");
         int pathIndex = 0;
         while (pathIndex < paths.list.count) {
             WaveExplicitProof__paths__Member *p = paths.list.array[pathIndex];
@@ -1016,7 +1015,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
 
     {
         // Now combine the policies together
-        ocall_print("Paths verified, now combining the policies");
+        enclave_print("Paths verified, now combining the policies");
         RTreePolicy_t *aggregatepolicy = pathpolicies->at(0);
         lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
         appendStatements(dedup_statements, &(aggregatepolicy->statements));
@@ -1061,7 +1060,7 @@ errorReturn:
 	delete dedup_statements;
     expiry = -1;
 Return:
-    ocall_print(errorMessage.c_str());
+    enclave_print(errorMessage.c_str());
     asn_DEF_WaveExplicitProof.op->free_struct(&asn_DEF_WaveExplicitProof, exp, ASFM_FREE_EVERYTHING);
     for (auto & ent: entList) {
         asn_DEF_WaveEntity.op->free_struct(&asn_DEF_WaveEntity, ent.get_entity(), ASFM_FREE_EVERYTHING);
