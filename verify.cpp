@@ -377,8 +377,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
-        errorMessage = string("failed to unmarshal");
-        goto errorReturn;
+        enclave_print("failed to unmarshal proof wire object");
+        delete pathpolicies;
+        delete dedup_statements;
+        return {nullptr, nullptr, nullptr, -2, nullptr};
     }
 
     {
@@ -386,7 +388,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         exp = (WaveExplicitProof_t *) unmarshal(type.buf, type.size, exp, &asn_DEF_WaveExplicitProof);	/* pointer to decoded data */
         asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
         if (exp == nullptr) {
-            errorMessage = string("failed to unmarshal");
+            errorMessage = string("failed to unmarshal explicit proof");
             goto errorReturn;
         }
     }

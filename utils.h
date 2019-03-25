@@ -6,7 +6,7 @@
 
 using namespace std;
 
-// #define EDEBUG 0
+#define EDEBUG 0
 
 #ifdef EDEBUG
   #define enclave_print(...) ocall_print(__VA_ARGS__)

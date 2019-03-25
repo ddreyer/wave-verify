@@ -27,6 +27,7 @@
 #include <RTreePolicy.h>
 #include <RTreeStatement.h>
 #include <TrustLevel.h>
+#include <WaveEncryptedMessage.h>
 
 #include "utils.h"
 
