@@ -399,7 +399,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         int entIndex = 0;
         while (entIndex < ents.list.count) {
             enclave_print("\nParsing entity");
-            OCTET_STRING_t *ent = exp->entities.list.array[entIndex];
+            OCTET_STRING_t *ent = ents.list.array[entIndex];
             string entStr((const char *) ent->buf, ent->size);
             entIndex++;
 
