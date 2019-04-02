@@ -1,6 +1,6 @@
-[submodule "ed25519"]
+[submodule "src/ed25519"]
 	path = src/ed25519
 	url = git@github.com:orlp/ed25519.git
-[submodule "hash-library"]
+[submodule "src/hash-library"]
 	path = src/hash-library
 	url = http://create.stephan-brumme.com/hash-library/.git

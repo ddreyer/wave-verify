@@ -355,11 +355,6 @@ long expiry_to_long(OCTET_STRING_t expiryStr) {
     return stol(temp, nullptr);
 }
 
-tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, vector<RTreePolicy_t *> *> verify_rtree_error(string message) {
-    verify_print(message.c_str());
-    return {nullptr};
-}
-
 tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, vector<RTreePolicy_t *> *> verify_rtree_proof(char *proof, size_t proofSize) {
     string decodedProof(proof, proofSize);
     // dynamically allocated memory and return variables

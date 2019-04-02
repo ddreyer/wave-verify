@@ -6,7 +6,7 @@
                 "name": "Wave SGX server",
                 "description": "wave project",
                 "host": "ante.cs.berkeley.edu", "port": 22,
-                "dir": "wave-verify/",
+                "dir": "go/src/github.com/ddreyer/wave-verify/",
                 "user": "sgx",
                 "privateKey": "/Users/dyldreyer/.ssh/github_rsa",
 

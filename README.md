@@ -1,8 +1,11 @@
 # WAVE Proof Verification Library in C/C++
 This is a C/C++ library for verifying [WAVE](https://github.com/immesys/wave) proofs. It provides a Go interface as well, mainly used for ease of testing. The code uses a forked [branch](https://github.com/velichkov/asn1c/tree/external_vlm_master) of the open source ASN.1 to C compiler. 
 
+## Using this Library
+First, clone the repository into the appropriate directory in your Go source tree (src/github.com/ddreyer/wave-verify). Then, run `make` to produce the `verify.a` file.
+
 ## Testing
-A Go test suite can be run by 
+A Go test suite can be run using the command `go test` in the `lang/go` directory.
 
 ## Credits
 The code uses an [ED25519 library](https://github.com/orlp/ed25519) and a [Keccak library](http://create.stephan-brumme.com/hash-library/.git).
