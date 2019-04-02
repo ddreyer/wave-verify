@@ -5,3 +5,4 @@ verify
 objects.h
 objects.cpp
 .DS_Store
+.vscode

@@ -24,19 +24,14 @@
                 "description": "verify code",
                 "files": [
                     "**/*.cpp",
-                    "**/*.h",
+                    "**/*.hpp",
                     "**/Makefile",
-                    "**/*.asn"
+                    "**/*.asn",
+                    "**/*.c",
+                    "**/*.h",
+                    "**/*.go"
                 ],
                 "deployOnSave": true
-            },
-            {
-                "name": "aes-gcm",
-                "description": "aes-gcm",
-                "files": [
-                    "**/aes-gcm/*"
-                ],
-                "deployOnChange": true
             },
             {
                 "name": "ed25519",
