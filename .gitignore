@@ -1,8 +1,5 @@
-proof*
-verify
 .idea*
 *.o
-objects.h
-objects.cpp
 .DS_Store
 .vscode
+verify.a
