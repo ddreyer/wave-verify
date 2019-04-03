@@ -90,6 +90,7 @@
         "sstream": "cpp",
         "stdexcept": "cpp",
         "cinttypes": "cpp",
-        "rtreepolicy.h": "c"
+        "rtreepolicy.h": "c",
+        "cstring": "cpp"
     }
 }

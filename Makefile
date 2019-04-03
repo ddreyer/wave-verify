@@ -1,18 +1,18 @@
 CXX = g++
-CFLAGS = -I./include/verify -I./include/asn1c
+CFLAGS = -I./include/asn1c
 CC = gcc
-CXXFLAGS = -std=c++17 -I./include/verify -I./include/asn1c -I./src
+CXXFLAGS = -I./include/verify -I./include/asn1c -I./src -Ofast -std=c++17 -lstdc++ 
 AR = ar
 
-VERIFY_CPP_SOURCES = $(wildcard src/hash-library/*.cpp) $(wildcard src/verify/*.cpp)
-VERIFY_C_SOURCES = $(wildcard src/ed25519/src/*.c) $(wildcard src/asn1c/*.c)
+VERIFY_CPP_SOURCES = $(wildcard src/verify/*.cpp) 
+VERIFY_C_SOURCES = $(wildcard src/asn1c/*.c) $(wildcard src/ed25519/src/*.c) $(wildcard src/SHA3IUF/*.c)
 
 BINDIR = bin
 VERIFY_OBJECTS = $(addprefix $(BINDIR)/,$(VERIFY_C_SOURCES:.c=.o)) $(addprefix $(BINDIR)/,$(VERIFY_CPP_SOURCES:.cpp=.o)) 
 
 all: verify.a
 
-verify.a: $(VERIFY_OBJECTS) $(V_OBJECTS)
+verify.a: $(VERIFY_OBJECTS)
 	$(AR) rcs verify.a $+
 
 $(BINDIR)/%.o: %.cpp

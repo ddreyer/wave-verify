@@ -1,200 +1,9 @@
-#include <fstream>
-#include <streambuf>
-#include <sstream>
-#include <stdio.h>
-#include <algorithm>
-#include <list>
-#include <unordered_map>
-#include <vector>
-
 #include "verify.hpp"
-
-using namespace std;
 
 const int CapCertification = 1;
 const int PermittedCombinedStatements = 1000;
 
-/* asn1 stuff */
-
-const string WaveObjectIdentifier("1.3.6.1.4.1.51157");
-const string EntityKeyScheme("11");
-const string Ed25519Id("1");
-const string Curve25519Id("2");
-const string OaqueBLS12381S20AttributesetId("7");
-const string OaqueBLS12381S20ParamsId("8");
-const string IbeBLS12381ParamsId("9");
-const string IbeBLS12381PublicId("10");
-const string AttestationBodyScheme("3");
-const string UnencryptedBodyScheme("1");
-const string WR1BodySchemeV1("2");
-const string HashScheme("9");
-const string Sha3256Id("1");
-const string Keccak256Id("2");
-const string OuterSignatureScheme("5");
-const string EphemeralEd25519("1");
-const string PolicyScheme("12");
-const string TrustLevel("1");
-const string ResourceTree("2");
-
-typedef struct enc_buffer {
-    uint8_t *buffer;
-    size_t buffer_size;
-    size_t buffer_filled;
-} enc_buffer_t;
-
-void * unmarshal(uint8_t *derEncodedData, size_t size, void *decodePtr, asn_TYPE_descriptor_t *asnType) {
-    asn_dec_rval_t rval;
-    rval = ber_decode(0, asnType, (void **) &decodePtr, derEncodedData, size);
-    if (rval.code != RC_OK) {
-        asnType->op->free_struct(asnType, decodePtr, ASFM_FREE_EVERYTHING);
-        decodePtr = nullptr;
-    } else {
-        char errbuf[128];
-        size_t errlen = sizeof(errbuf);
-        if (asn_check_constraints(asnType, decodePtr, errbuf, &errlen)) {
-            verify_print("constraint check on unmarshalled object failed");
-            return nullptr;
-        }
-    }
-    return decodePtr;
-}
-
-/* The following is adapted from https://stackoverflow.com/questions/11075886/encode-xer-to-buffer-with-asn1c
- * except I fixed a bug (sigh) in the callback by adding a return 1;
- */
-
-void init_enc_buffer(enc_buffer_t* buffer) {
-    buffer->buffer = (uint8_t *) malloc(1024);
-    assert(buffer->buffer != NULL);
-    buffer->buffer_size = 1024;
-    buffer->buffer_filled = 0;
-}
-
-void free_enc_buffer(enc_buffer_t* buffer) {
-    free(buffer->buffer);
-    buffer->buffer_size = 0;
-    buffer->buffer_filled = 0;
-}
-
-static int print2buf_cb(const void *buffer, size_t size, void *app_key) {
-    enc_buffer_t* xb = (enc_buffer_t*) app_key;
-    while (xb->buffer_size - xb->buffer_filled <= size+1) {
-        xb->buffer_size *= 2;
-        xb->buffer_size += 1;
-        xb->buffer = (uint8_t *) realloc(xb->buffer, xb->buffer_size);
-        assert(xb->buffer != NULL);
-    }
-    memcpy(xb->buffer+xb->buffer_filled, buffer, size);
-    xb->buffer_filled += size;
-    *(xb->buffer+xb->buffer_filled) = '\0';
-    return 1;
-}
-
-int encode_to_buffer(enc_buffer_t* xb, asn_TYPE_descriptor_t *td, void *sptr) {
-    asn_enc_rval_t er;
-    if (!td || !sptr) return -1;
-    /* if object identifier, xer encode only the body to view type id string
-     * else, der encode whole object to marshal 
-     */
-    if (td == &asn_DEF_OBJECT_IDENTIFIER) {
-        er = td->op->xer_encoder(td, sptr, 1, XER_F_BASIC, print2buf_cb, xb);
-    } else {
-        er = der_encode(td, sptr, print2buf_cb, xb);
-    }
-    if (er.encoded == -1) return -1;
-    return 0;
-}
-
-/* joins type id substrings together, assuming WaveObjectIdentifier is always the the base */
-string idJoiner(string scheme, string id) {
-    return WaveObjectIdentifier + "." + scheme + "." + id;
-}
-
-/* takes in an asn type descriptor and returns the object identifier as an
- * XER encoded string for the type 
- */
-string getTypeId(asn_TYPE_descriptor_t *td) {
-    /* WaveObjectIdentifier is always the the base string */
-    if (td == &asn_DEF_Public_Ed25519) {
-        return idJoiner(EntityKeyScheme, Ed25519Id);
-    } else if (td == &asn_DEF_Public_Curve25519) {
-        return idJoiner(EntityKeyScheme, Curve25519Id);
-    } else if (td == &asn_DEF_Params_BLS12381_IBE) {
-        return idJoiner(EntityKeyScheme, IbeBLS12381ParamsId);
-    } else if (td == &asn_DEF_Public_BLS12381_IBE) {
-        return idJoiner(EntityKeyScheme, IbeBLS12381PublicId);
-    } else if (td == &asn_DEF_Params_BLS12381_OAQUE) {
-        return idJoiner(EntityKeyScheme, OaqueBLS12381S20ParamsId);
-    } else if (td == &asn_DEF_Public_OAQUE) {
-        return idJoiner(EntityKeyScheme, OaqueBLS12381S20AttributesetId);
-    } else if (td == &asn_DEF_AttestationBody) {
-        return idJoiner(AttestationBodyScheme, UnencryptedBodyScheme);
-    } else if (td == &asn_DEF_WR1BodyCiphertext) {
-        return idJoiner(AttestationBodyScheme, WR1BodySchemeV1);
-    } else if (td == &asn_DEF_HashKeccak_256) {
-        return idJoiner(HashScheme, Keccak256Id);
-    } else if (td == &asn_DEF_HashSha3_256) {
-        return idJoiner(HashScheme, Sha3256Id);
-    } else if (td == &asn_DEF_Ed25519OuterSignature) {
-        return idJoiner(OuterSignatureScheme, EphemeralEd25519);
-    } else if (td == &asn_DEF_TrustLevel) {
-        return idJoiner(PolicyScheme, TrustLevel);
-    } else if (td == &asn_DEF_RTreePolicy) {
-        return idJoiner(PolicyScheme, ResourceTree);
-    } else {
-        verify_print("Could not find a match for a type id");
-    }
-}
-
-/* Marshals a given struct and returns encoded string (used for a couple purposes in the program) */
-string marshal(void *obj, asn_TYPE_descriptor_t *asnType) {
-    char errbuf[128];
-    size_t errlen = sizeof(errbuf);
-    if (asn_check_constraints(asnType, obj, errbuf, &errlen)) {
-        verify_print("constraint check on object to be marshalled failed");
-        return "";
-    }
-    enc_buffer_t enc_buf;
-    init_enc_buffer(&enc_buf);
-    encode_to_buffer(&enc_buf, asnType, obj);
-    string enc((char *) enc_buf.buffer, enc_buf.buffer_filled);
-    free_enc_buffer(&enc_buf);
-    return enc;
-}
-
-/* verify helper functions */
-
-class EntityItem {
-private:
-    WaveEntity_t *entity;
-    string entityDer;
-public:
-    EntityItem(WaveEntity_t *entity, string entityDer);
-    WaveEntity_t * get_entity();
-    string get_der();
-};
-
-class AttestationItem {
-private:
-    WaveAttestation_t *attestation;
-    AttestationVerifierBody_t *decryptedBody;
-public:
-    AttestationItem(WaveAttestation_t *att, AttestationVerifierBody_t *dBody);
-    WaveAttestation_t * get_att();
-    AttestationVerifierBody_t * get_body();
-};
-
-class RTreeStatementItem {
-private:
-    EntityHash_t *permissionSet;
-    list<string> permissions;
-    string intersectionResource;
-public:
-    RTreeStatementItem(EntityHash_t *pSet, list<string> perms, string iResource);
-    EntityHash_t * get_permissionSet();
-    list<string> get_permissions();
-    string get_interResource();
-};
+using namespace std;
 
 EntityItem::EntityItem(WaveEntity_t *ent, string entDer) {
     entity = ent;
@@ -496,11 +305,6 @@ bool isStatementSupersetOf(RTreeStatementItem *subset, RTreeStatementItem *super
     return !inter_uri.compare(subset->get_interResource());
 }
 
-void freeStatementItem(RTreeStatementItem *statement) {
-    asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, statement->get_permissionSet(), ASFM_FREE_EVERYTHING);
-    delete statement;
-}
-
 void computeStatements(vector<RTreeStatementItem *> *statements, vector<RTreeStatementItem *> *dedup_statements) {
     for (int orig_idx = 0; orig_idx < statements->size(); orig_idx++) {
         next:
@@ -520,6 +324,14 @@ void computeStatements(vector<RTreeStatementItem *> *statements, vector<RTreeSta
     }
 }
 
+void appendStatements(vector<RTreeStatementItem *> *statements, RTreePolicy_t::RTreePolicy__statements *policyStments) {
+    int index = 0;
+    while (index < policyStments->list.count) {
+        statements->push_back(statementToItem(policyStments->list.array[index]));
+        index++;
+    }
+}
+
 RTreeStatementItem * statementToItem(RTreeStatement_t *statement) {
     RTreeStatement_t::RTreeStatement__permissions perms = statement->permissions;
     int i = 0;
@@ -533,12 +345,9 @@ RTreeStatementItem * statementToItem(RTreeStatement_t *statement) {
     return new RTreeStatementItem(&statement->permissionSet, permList, rsource);
 }
 
-void appendStatements(vector<RTreeStatementItem *> *statements, RTreePolicy_t::RTreePolicy__statements *policyStments) {
-    int index = 0;
-    while (index < policyStments->list.count) {
-        statements->push_back(statementToItem(policyStments->list.array[index]));
-        index++;
-    }
+void freeStatementItem(RTreeStatementItem *statement) {
+    asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, statement->get_permissionSet(), ASFM_FREE_EVERYTHING);
+    delete statement;
 }
 
 long expiry_to_long(OCTET_STRING_t expiryStr) {
@@ -563,8 +372,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
-        errorMessage = string("failed to unmarshal proof wire object");
-        goto errorReturn;
+        verify_print("failed to unmarshal proof wire object");
+        delete pathpolicies;
+        delete dedup_statements;
+        return {nullptr, nullptr, nullptr, -2, nullptr};
     }
 
     {
@@ -915,22 +726,21 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("attester hash not valid");
                     goto errorReturn;
                 }
+                // convert attestation hash to hex
+                string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
+                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
 
+                string attHashHex = string_to_hex(attesterHashStr);
                 // loop through entities
                 for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
-                    char eHash[32];
-                    if (sha3_HashBuffer(256, SHA3_FLAGS_KECCAK, it->get_der().c_str(), it->get_der().size(), eHash, 32)) {
-                        asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
-                        errorMessage = string("could not take hash of entity");
-                        goto errorReturn;
-                    }
-                    if (!memcmp(attesterHash->buf, eHash, 32)) {
+                    Keccak k(Keccak::Keccak256);
+                    string entityHash = k(it->get_der());
+                    if (attHashHex == entityHash) {
                         verify_print("found matching entity for attester");
                         attester = it->get_entity();
                         break;
                     }
                 }
-                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
             } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
                 HashSha3_256_t *attesterHash = 0;
                 attesterHash = (HashSha3_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
@@ -1269,6 +1079,9 @@ long verifyProof(char *proofDER, size_t proofDERSize, char *subject, size_t subj
 	if (expiry == -1) {
 		verify_print("\nerror in verify rtree proof");
 		return -1;
+	} else if (expiry == -2) {
+		verify_print("\nerror unmarshaling proof wire object, most likely a decryption error if applicable");
+		return -2;
 	}
 
     string returnStr = string("verifying proof succeeded");
