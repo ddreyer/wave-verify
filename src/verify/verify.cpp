@@ -541,6 +541,21 @@ void appendStatements(vector<RTreeStatementItem *> *statements, RTreePolicy_t::R
     }
 }
 
+string string_to_hex(const string& input) {
+    static const char* const lut = "0123456789abcdef";
+    size_t len = input.length();
+
+    string output;
+    output.reserve(2 * len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        const unsigned char c = input[i];
+        output.push_back(lut[c >> 4]);
+        output.push_back(lut[c & 15]);
+    }
+    return output;
+}
+
 long expiry_to_long(OCTET_STRING_t expiryStr) {
     string temp = string((const char *) expiryStr.buf, expiryStr.size);
     return stol(temp, nullptr);
@@ -563,8 +578,10 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
     WaveWireObject_t *wwoPtr = 0;
     wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) (decodedProof.c_str()), decodedProof.length(), wwoPtr, &asn_DEF_WaveWireObject);	/* pointer to decoded data */
     if (wwoPtr == nullptr) {
-        errorMessage = string("failed to unmarshal proof wire object");
-        goto errorReturn;
+        verify_print("failed to unmarshal proof wire object");
+        delete pathpolicies;
+        delete dedup_statements;
+        return {nullptr, nullptr, nullptr, -2, nullptr};
     }
 
     {
@@ -915,22 +932,21 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("attester hash not valid");
                     goto errorReturn;
                 }
+                // convert attestation hash to hex
+                string attesterHashStr((const char *) attesterHash->buf, attesterHash->size);
+                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
 
+                string attHashHex = string_to_hex(attesterHashStr);
                 // loop through entities
                 for (list<EntityItem>::iterator it=entList.begin(); it != entList.end(); ++it) {
-                    char eHash[32];
-                    if (sha3_HashBuffer(256, SHA3_FLAGS_KECCAK, it->get_der().c_str(), it->get_der().size(), eHash, 32)) {
-                        asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
-                        errorMessage = string("could not take hash of entity");
-                        goto errorReturn;
-                    }
-                    if (!memcmp(attesterHash->buf, eHash, 32)) {
+                    Keccak k(Keccak::Keccak256);
+                    string entityHash = k(it->get_der());
+                    if (attHashHex == entityHash) {
                         verify_print("found matching entity for attester");
                         attester = it->get_entity();
                         break;
                     }
                 }
-                asn_DEF_HashKeccak_256.op->free_struct(&asn_DEF_HashKeccak_256, attesterHash, ASFM_FREE_EVERYTHING);
             } else if (attestId == getTypeId(&asn_DEF_HashSha3_256)) {
                 HashSha3_256_t *attesterHash = 0;
                 attesterHash = (HashSha3_256_t *) unmarshal(type.buf, type.size, attesterHash, &asn_DEF_HashSha3_256);
@@ -1269,6 +1285,9 @@ long verifyProof(char *proofDER, size_t proofDERSize, char *subject, size_t subj
 	if (expiry == -1) {
 		verify_print("\nerror in verify rtree proof");
 		return -1;
+	} else if (expiry == -2) {
+		verify_print("\nerror unmarshaling proof wire object, most likely a decryption error if applicable");
+		return -2;
 	}
 
     string returnStr = string("verifying proof succeeded");

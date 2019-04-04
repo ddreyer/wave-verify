@@ -70,7 +70,7 @@ static struct tm *gmtime_r(const time_t *tloc, struct tm *result) {
 #ifdef	HAVE_TM_GMTOFF
 #define	GMTOFF(tm)	((tm).tm_gmtoff)
 #else	/* HAVE_TM_GMTOFF */
-#define	GMTOFF(tm)	(-timezone)
+// #define	GMTOFF(tm)	(-timezone)
 #endif	/* HAVE_TM_GMTOFF */
 
 #if	defined(_WIN32)
@@ -562,14 +562,14 @@ local_finish:
 	/*** AT THIS POINT tm_s is either GMT or local (unknown) ****/
 
 	if(offset_specified) {
-		tloc = timegm(&tm_s);
+		tloc = timegm_ocall(&tloc, &tm_s);
 	} else {
 		/*
 		 * Without an offset (or "Z"),
 		 * we can only guess that it is a local zone.
 		 * Interpret it in this fashion.
 		 */
-		tloc = mktime(&tm_s);
+		tloc = mktime(&tloc, &tm_s);
 	}
 	if(tloc == -1) {
 		errno = EINVAL;
@@ -581,13 +581,15 @@ local_finish:
 			if(offset_specified) {
 				*ret_tm = tm_s;
 			} else {
-				if(gmtime_r(&tloc, ret_tm) == 0) {
+				int ret;
+				if(gmtime_r_ocall(&ret, &tloc, ret_tm) == 0) {
 					errno = EINVAL;
 					return -1;
 				}
 			}
 		} else {
-			if(localtime_r(&tloc, ret_tm) == 0) {
+			int ret;
+			if(localtime_r_ocall(&ret, &tloc, ret_tm) == 0) {
 				errno = EINVAL;
 				return -1;
 			}
@@ -631,12 +633,13 @@ asn_time2GT_frac(GeneralizedTime_t *opt_gt, const struct tm *tm, int frac_value,
 	buf = (char *)MALLOC(buf_size);
 	if(!buf) return 0;
 
-	gmtoff = GMTOFF(*tm);
+	long ret;
+	gmtoff = GMTOFF(&ret, *tm);
 
 	if(force_gmt && gmtoff) {
 		tm_s = *tm;
 		tm_s.tm_sec -= gmtoff;
-		timegm(&tm_s);	/* Fix the time */
+		timegm_ocall(NULL, &tm_s);	/* Fix the time */
 		tm = &tm_s;
 #ifdef	HAVE_TM_GMTOFF
 		assert(!GMTOFF(tm_s));	/* Will fix itself */
@@ -826,4 +829,3 @@ GeneralizedTime_compare(const asn_TYPE_descriptor_t *td, const void *aptr,
     }
 
 }
-

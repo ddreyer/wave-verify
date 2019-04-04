@@ -8,7 +8,7 @@ First, clone the repository into the appropriate directory in your Go source tre
 The Go testing suite can be run via the command `go test` in the `lang/go` directory. The testing suite requires the WAVE daemon be running. WAVE release can be found [here](https://github.com/immesys/wave/releases)
 
 ## Credits
-The code uses two third party libraries as Git submodules: an [ED25519 library](https://github.com/orlp/ed25519) and a [Keccak hashing library](https://github.com/brainhub/SHA3IUF).
+The code uses two third party libraries as Git submodules: an [ED25519 library](https://github.com/orlp/ed25519) and a [Keccak hashing library](https://github.com/stbrumme/hash-library).
 
 ## Intel SGX Support
 The sgx branch of this repository allows this library to interface as a Git submodule with a parent [library](https://github.com/ddreyer/wave-verify-sgx) that provides a C API for verifying WAVE proofs inside an Intel SGX enclave.
