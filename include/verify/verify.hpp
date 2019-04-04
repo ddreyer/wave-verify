@@ -1,13 +1,10 @@
 #ifndef __VERIFY_H_INCLUDED__
 #define __VERIFY_H_INCLUDED__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include <openssl/evp.h>
 
 #include "ed25519/src/ed25519.h"
-#include "SHA3IUF/sha3.h"
+#include "hash-library/keccak.h"
 
 #include "WaveEntity.h"
 #include "WaveEntitySecret.h"
@@ -36,14 +33,14 @@ extern "C" {
 #include "RTreeStatement.h"
 #include "TrustLevel.h"
 
+#include <string>
+#include "Enclave_t.h"
+
 // toggle this to enable/disable debug print output
-#define verify_print(...) printf("%s\n", __VA_ARGS__)
+#define verify_print(...) ocall_print(__VA_ARGS__)
 // #define verify_print(...)
 
 long verifyProof(char *proofDER, size_t proofDERSize, char *subject, size_t subj_size, 
                 char *policyDER, size_t policyDER_size);
 
-#ifdef __cplusplus
-}
-#endif
 #endif
