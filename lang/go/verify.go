@@ -8,6 +8,9 @@ package verify
 import "C"
 
 import (
+	"fmt"
+	"strconv"
+	"time"
 	"unsafe"
 
 	"github.com/immesys/asn1"
@@ -19,12 +22,12 @@ import (
 
 // Verifies a proof given the proof DER, expected subject, and required policy.
 // Returns the proof expiry as a long and possibly any errors that may have occurred.
-func VerifyProof(DER []byte, subjectHash []byte, reqPol *pb.RTreePolicy) (int64, error) {
+func VerifyProof(DER []byte, subjectHash []byte, reqPol *pb.RTreePolicy) (time.Time, error) {
 	var statements []serdes.RTreeStatement
 	for _, statement := range reqPol.Statements {
 		phash := iapi.HashSchemeInstanceFromMultihash(statement.PermissionSet)
 		if !phash.Supported() {
-			return -1, wve.Err(wve.InvalidParameter, "bad namespace")
+			return time.Now(), wve.Err(wve.InvalidParameter, "bad namespace")
 		}
 		pext := phash.CanonicalForm()
 		s := serdes.RTreeStatement{
@@ -37,7 +40,7 @@ func VerifyProof(DER []byte, subjectHash []byte, reqPol *pb.RTreePolicy) (int64,
 
 	ehash := iapi.HashSchemeInstanceFromMultihash(reqPol.Namespace)
 	if !ehash.Supported() {
-		return -1, wve.Err(wve.InvalidParameter, "bad namespace")
+		return time.Now(), wve.Err(wve.InvalidParameter, "bad namespace")
 	}
 	ext := ehash.CanonicalForm()
 	spol := serdes.RTreePolicy{
@@ -53,7 +56,7 @@ func VerifyProof(DER []byte, subjectHash []byte, reqPol *pb.RTreePolicy) (int64,
 	}
 	polBytes, err := asn1.Marshal(wrappedPol.Content)
 	if err != nil {
-		panic(err)
+		return time.Now(), wve.ErrW(wve.InternalError, "cannot marshal policy", err)
 	}
 
 	polDER := (*C.char)(unsafe.Pointer(&polBytes[0]))
@@ -61,7 +64,11 @@ func VerifyProof(DER []byte, subjectHash []byte, reqPol *pb.RTreePolicy) (int64,
 	proofDER := (*C.char)(unsafe.Pointer(&DER[0]))
 	CExpiry := C.verifyProof(proofDER, C.ulong(len(DER)), subject, C.ulong(len(subjectHash)-2), polDER, C.ulong(len(polBytes)))
 	if int64(CExpiry) == -1 {
-		return -1, wve.Err(wve.ProofInvalid, "failed to C verify proof")
+		return time.Now(), wve.Err(wve.ProofInvalid, "failed to C verify proof")
 	}
-	return int64(CExpiry), nil
+	expiryStr := strconv.FormatInt(int64(CExpiry), 10)
+	proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
+		expiryStr[4:6], expiryStr[6:8], expiryStr[8:10], expiryStr[10:12])
+	proofTime, _ := time.Parse(time.RFC3339, proofExpiry)
+	return proofTime, nil
 }

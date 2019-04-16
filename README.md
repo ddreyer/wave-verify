@@ -5,7 +5,7 @@ This is a C/C++ library for verifying [WAVE](https://github.com/immesys/wave) pr
 First, clone the repository into the appropriate directory in your Go source tree (`src/github.com/ddreyer/wave-verify`). Then, run `git submodule init` and then `git submodule update` to clone the submodules. Finally, run `make` to produce the `verify.a` file.
 
 ## Testing
-The Go testing suite can be run via the command `go test` in the `lang/go` directory. The testing suite requires the WAVE daemon be running. WAVE release can be found [here](https://github.com/immesys/wave/releases)
+A Go testing suite can be run via the command `go test` in the `lang/go` directory. The testing suite requires that the WAVE daemon be running. WAVE releases can be found [here](https://github.com/immesys/wave/releases)
 
 ## Credits
 The code uses two third party libraries as Git submodules: an [ED25519 library](https://github.com/orlp/ed25519) and a [Keccak hashing library](https://github.com/brainhub/SHA3IUF).
@@ -19,4 +19,5 @@ The sgx branch of this repository allows this library to interface as a Git subm
 ## TODOS
 - [ ] write a C testing suite such that valgrind can be run
 - [ ] implement expiry checks for attestations and entities
-- [ ] implement checking revocations
+- [ ] implement revocation checks
+- [ ] provide a better C interface

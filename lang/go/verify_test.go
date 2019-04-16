@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -114,7 +113,6 @@ func init() {
 }
 
 func checkVerification(t *testing.T, DER []byte, subjectHash []byte, pbPol *pb.RTreePolicy) {
-	var proofTime time.Time
 	verifyresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
 		ProofDER:            DER,
 		Subject:             subjectHash,
@@ -123,18 +121,13 @@ func checkVerification(t *testing.T, DER []byte, subjectHash []byte, pbPol *pb.R
 	require.NoError(t, err)
 	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 
-	CExpiry, err := VerifyProof(DER, subjectHash, pbPol)
+	proofTime, err := VerifyProof(DER, subjectHash, pbPol)
 	if verifyresp.Error == nil {
 		require.NoError(t, err)
 	} else {
-		fmt.Println(verifyresp.Error.Message)
 		require.Error(t, err)
 	}
 	if err == nil {
-		expiryStr := strconv.FormatInt(CExpiry, 10)
-		proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
-			expiryStr[4:6], expiryStr[6:8], expiryStr[8:10], expiryStr[10:12])
-		proofTime, _ = time.Parse(time.RFC3339, proofExpiry)
 		require.True(t, waveTime.Equal(proofTime))
 	}
 }
@@ -517,9 +510,9 @@ func TestMultipleStatements(t *testing.T) {
 // tests proof which contains multiple attestations
 func TestAttestationChain(t *testing.T) {
 	prevEnt := Dst
-	var ent *pb.CreateEntityResponse
+	ent := prevEnt
 	var err error
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 5; i++ {
 		ent, err = waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
 		require.NoError(t, err)
 		require.Nil(t, ent.Error)
@@ -682,4 +675,78 @@ func TestBasicWithOptionals(t *testing.T) {
 		},
 	}
 	checkVerification(t, proofresp.ProofDER, dst.Hash, &pbPol)
+}
+
+func BenchmarkProofVerify(b *testing.B) {
+	prevEnt := Dst
+	ent := prevEnt
+	var err error
+	for i := 0; i < 0; i++ {
+		ent, err = waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
+		require.NoError(b, err)
+		require.Nil(b, ent.Error)
+		entresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+			DER: ent.PublicDER,
+		})
+		require.NoError(b, err)
+		require.Nil(b, entresp.Error)
+		attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
+			Perspective: &pb.Perspective{
+				EntitySecret: &pb.EntitySecret{
+					DER: prevEnt.SecretDER,
+				},
+			},
+			SubjectHash: ent.Hash,
+			Policy: &pb.Policy{
+				RTreePolicy: &pb.RTreePolicy{
+					Namespace:    Src.Hash,
+					Indirections: 20,
+					Statements: []*pb.RTreePolicyStatement{
+						&pb.RTreePolicyStatement{
+							PermissionSet: Src.Hash,
+							Permissions:   []string{"default"},
+							Resource:      "default",
+						},
+					},
+				},
+			},
+			Publish: true,
+		})
+		require.NoError(b, err)
+		require.Nil(b, attresp.Error)
+		prevEnt = ent
+	}
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: ent.SecretDER,
+			},
+		},
+		SubjectHash: ent.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+		ResyncFirst: true,
+	})
+	require.NoError(b, err)
+	require.Nil(b, proofresp.Error)
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		VerifyProof(proofresp.ProofDER, ent.Hash, &pbPol)
+	}
 }

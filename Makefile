@@ -1,5 +1,5 @@
 CXX = g++
-CFLAGS = -I./include/asn1c
+CFLAGS = -I./include/asn1c -Ofast
 CC = gcc
 CXXFLAGS = -I./include/verify -I./include/asn1c -I./src -Ofast -std=c++17 -lstdc++ 
 AR = ar
