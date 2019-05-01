@@ -18,6 +18,7 @@ The sgx branch of this repository allows this library to interface as a Git subm
 
 ## TODOS
 - [ ] write a C testing suite such that valgrind can be run
+- [ ] add support for decrypting attestation body in prover's role without symmetric key -> has to do with updated EntityKeySchemeInstanceFor function
 - [ ] implement expiry checks for attestations and entities
 - [ ] implement revocation checks
 - [ ] provide a better C interface
