@@ -512,7 +512,7 @@ func TestAttestationChain(t *testing.T) {
 	prevEnt := Dst
 	ent := prevEnt
 	var err error
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 4; i++ {
 		ent, err = waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
 		require.NoError(t, err)
 		require.Nil(t, ent.Error)

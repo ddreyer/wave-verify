@@ -340,8 +340,7 @@ OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
     }
 }
 
-LocationURL_t * LocationSchemeInstanceFor(WaveAttestation_t *att) {
-    ANY_t type = att->tbs.subjectLocation.encoding.choice.single_ASN1_type;
+LocationURL_t * LocationSchemeInstanceFor(ANY_t type) {
     LocationURL_t *lsurl = 0;
     lsurl = (LocationURL_t *) unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
@@ -1065,12 +1064,13 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
 
             AttestationItem currAttItem = attestationList.at(*pathNum);
             WaveAttestation_t *currAtt = currAttItem.get_att();
+
             // gofunc: Subject
             // gofunc: HashSchemeInstanceFor
             OCTET_STRING_t *cursubj = HashSchemeInstanceFor(currAtt);
-
             // gofunc: LocationSchemeInstanceFor
-            LocationURL_t *cursubloc = LocationSchemeInstanceFor(currAtt);
+            ANY_t type = currAtt->tbs.subjectLocation.encoding.choice.single_ASN1_type;
+            LocationURL_t *cursubloc = LocationSchemeInstanceFor(type);
 
             // gofunc: PolicySchemeInstanceFor
             AttestationVerifierBody_t *currBody = currAttItem.get_body();
@@ -1085,21 +1085,24 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("proof refers to non-included attestation");
                     goto errorReturn;
                 }
-
                 AttestationItem nextAttItem = attestationList.at(*pathNum);
-                WaveAttestation_t *nextAtt = currAttItem.get_att();
+                WaveAttestation_t *nextAtt = nextAttItem.get_att();
+                
+                // gofunc: Attester
                 // gofunc: HashSchemeInstanceFor
-                OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(nextAtt);
-
+                OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(&nextAttItem.get_body()->attester);
                 // gofunc: LocationSchemeInstanceFor
-                LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(nextAtt);
+                ANY_t type = nextAttItem.get_body()->attesterLocation.encoding.choice.single_ASN1_type;
+                LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(type);
 
                 if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
                     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
+                    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, nextAttest, ASFM_FREE_EVERYTHING);
                     errorMessage = string("path has broken links");
                     goto errorReturn;
                 }
                 asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
+                asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, nextAttest, ASFM_FREE_EVERYTHING);
 
                 // gofunc: PolicySchemeInstanceFor
                 AttestationVerifierBody_t *nextBody = nextAttItem.get_body();
@@ -1191,12 +1194,12 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                     errorMessage = string("statements form too many combinations");
                     goto errorReturn;
                 }
-                cursubj = nextAttest;
-                LocationURL_t *cursubloc = nextAttLoc;
+                // gofunc: Subject
+                // gofunc: HashSchemeInstanceFor
+                cursubj = HashSchemeInstanceFor(nextAtt);
             }
             pathpolicies->push_back(policy);
             pathEndEntities.push_back(cursubj);
-            LocationURL_t *subjectLocation = cursubloc;
         }
     }
 
