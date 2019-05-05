@@ -253,94 +253,37 @@ bool HasCapability(WaveEntity_t *entity) {
     return false;
 }
 
-OCTET_STRING_t * HashSchemeInstanceFor(WaveAttestation_t *att) {
-    ANY_t type = att->tbs.subject.encoding.choice.single_ASN1_type;
-    string subId = marshal(att->tbs.subject.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
-    if (subId == getTypeId(&asn_DEF_HashKeccak_256)) {
-        HashKeccak_256_t *attest = 0;
-        attest = (HashKeccak_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashKeccak_256);
-        if (attest == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #1");
-        }
-        if (attest->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #2");
-        }
-        return attest;
-    } else if (subId == getTypeId(&asn_DEF_HashSha3_256)) {
-        HashSha3_256_t *attest = 0;
-        attest = (HashSha3_256_t *) unmarshal(type.buf, type.size, attest, &asn_DEF_HashSha3_256);
-        if (attest == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #3");
-        }
-        if (attest->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #4");
-        }
-        return attest;
-    } else {
-        verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #5");
-        return nullptr;
-    }
-}
-
-OCTET_STRING_t * HashSchemeInstanceFor(RTreePolicy_t *policy) {
-    ANY_t type = policy->Namespace.encoding.choice.single_ASN1_type;
-    string id = marshal(policy->Namespace.direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
+OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *hash) {
+    ANY_t type = hash->encoding.choice.single_ASN1_type;
+    string id = marshal(hash->direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
     if (id == getTypeId(&asn_DEF_HashKeccak_256)) {
         HashKeccak_256_t *hash = 0;
         hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
         if (hash == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #6");
+            verify_print("HASHSCHEMEINSTANCEFOR ERROR #1");
         }
         if (hash->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #7");
+            verify_print("HASHSCHEMEINSTANCEFOR ERROR #2");
         }
         return hash;
     } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
         HashSha3_256_t *hash = 0;
         hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
         if (hash == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #8");
+            verify_print("HASHSCHEMEINSTANCEFOR ERROR #3");
         }
         if (hash->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #9");
+            verify_print("HASHSCHEMEINSTANCEFOR ERROR #4");
         }
         return hash;
     } else {
-        verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #10");
+        verify_print("HASHSCHEMEINSTANCEFOR ERROR #5");
         return nullptr;
     }
 }
 
-OCTET_STRING_t * HashSchemeInstanceFor(EntityHash_t *pSet) {
-    ANY_t type = pSet->encoding.choice.single_ASN1_type;
-    string id = marshal(pSet->direct_reference, &asn_DEF_OBJECT_IDENTIFIER);
-    if (id == getTypeId(&asn_DEF_HashKeccak_256)) {
-        HashKeccak_256_t *hash = 0;
-        hash = (HashKeccak_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashKeccak_256);
-        if (hash == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #11");
-        }
-        if (hash->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #12");
-        }
-        return hash;
-    } else if (id == getTypeId(&asn_DEF_HashSha3_256)) {
-        HashSha3_256_t *hash = 0;
-        hash = (HashSha3_256_t *) unmarshal(type.buf, type.size, hash, &asn_DEF_HashSha3_256);
-        if (hash == nullptr) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #13");
-        }
-        if (hash->size != 32) {
-            verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #14");
-        }
-        return hash;
-    } else {
-        verify_print("HASHSCHEMEINSTANCEFOR ERROR: problem with hash #15");
-        return nullptr;
-    }
-}
-
-LocationURL_t * LocationSchemeInstanceFor(ANY_t type) {
+LocationURL_t * LocationSchemeInstanceFor(Location_t *loc) {
+    ANY_t type = loc->encoding.choice.single_ASN1_type;
     LocationURL_t *lsurl = 0;
     lsurl = (LocationURL_t *) unmarshal(type.buf, type.size, lsurl, &asn_DEF_LocationURL);
     if (lsurl == nullptr) {
@@ -829,7 +772,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 }
                 verify_print("got wr1 body");
                 // checking subject HI instance
-                OCTET_STRING_t *ret = HashSchemeInstanceFor(att);
+                OCTET_STRING_t *ret = HashSchemeInstanceFor(&att->tbs.subject);
                 asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, ret, ASFM_FREE_EVERYTHING);
 
                 if (vfk != nullptr) {
@@ -1067,10 +1010,9 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
 
             // gofunc: Subject
             // gofunc: HashSchemeInstanceFor
-            OCTET_STRING_t *cursubj = HashSchemeInstanceFor(currAtt);
+            OCTET_STRING_t *cursubj = HashSchemeInstanceFor(&currAtt->tbs.subject);
             // gofunc: LocationSchemeInstanceFor
-            ANY_t type = currAtt->tbs.subjectLocation.encoding.choice.single_ASN1_type;
-            LocationURL_t *cursubloc = LocationSchemeInstanceFor(type);
+            LocationURL_t *cursubloc = LocationSchemeInstanceFor(&currAtt->tbs.subjectLocation);
 
             // gofunc: PolicySchemeInstanceFor
             AttestationVerifierBody_t *currBody = currAttItem.get_body();
@@ -1092,8 +1034,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 // gofunc: HashSchemeInstanceFor
                 OCTET_STRING_t *nextAttest = HashSchemeInstanceFor(&nextAttItem.get_body()->attester);
                 // gofunc: LocationSchemeInstanceFor
-                ANY_t type = nextAttItem.get_body()->attesterLocation.encoding.choice.single_ASN1_type;
-                LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(type);
+                LocationURL_t *nextAttLoc = LocationSchemeInstanceFor(&nextAttItem.get_body()->attesterLocation);
 
                 if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, cursubj, nextAttest)) {
                     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, cursubj, ASFM_FREE_EVERYTHING);
@@ -1109,8 +1050,8 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 RTreePolicy_t *nextPolicy = PolicySchemeInstanceFor(nextBody);
 
                 // gofunc: Intersect
-                OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(nextPolicy);
-                OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+                OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(&nextPolicy->Namespace);
+                OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(&policy->Namespace);
                 // not doing multihash
                 if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
                     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
@@ -1196,7 +1137,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 }
                 // gofunc: Subject
                 // gofunc: HashSchemeInstanceFor
-                cursubj = HashSchemeInstanceFor(nextAtt);
+                cursubj = HashSchemeInstanceFor(&nextAtt->tbs.subject);
             }
             pathpolicies->push_back(policy);
             pathEndEntities.push_back(cursubj);
@@ -1207,7 +1148,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
         // Now combine the policies together
         verify_print("Paths verified, now combining the policies");
         RTreePolicy_t *aggregatepolicy = pathpolicies->at(0);
-        lhs_ns = HashSchemeInstanceFor(aggregatepolicy);
+        lhs_ns = HashSchemeInstanceFor(&aggregatepolicy->Namespace);
         appendStatements(dedup_statements, &(aggregatepolicy->statements));
         finalsubject = pathEndEntities.at(0);
         for (int idx = 1; idx < pathpolicies->size(); idx++) {
@@ -1216,7 +1157,7 @@ tuple<OCTET_STRING_t *, OCTET_STRING_t *, vector<RTreeStatementItem *> *, long, 
                 goto errorReturn;
             }
             // gofunc: Union
-            OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(pathpolicies->at(idx));
+            OCTET_STRING_t *rhs_ns = HashSchemeInstanceFor(&pathpolicies->at(idx)->Namespace);
             // not doing multihash
             if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, rhs_ns, lhs_ns)) {
                 asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, rhs_ns, ASFM_FREE_EVERYTHING);
@@ -1294,7 +1235,7 @@ long verifyProof(char *proofDER, size_t proofDERSize, char *subject, size_t subj
 			goto errorReturn;
         }
 
-		OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+		OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(&policy->Namespace);
 		// not doing multihash
 		if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, superset_ns, lhs_ns)) {
 			asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
